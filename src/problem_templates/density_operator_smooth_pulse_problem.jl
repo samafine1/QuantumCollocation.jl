@@ -6,6 +6,7 @@ function DensityOperatorSmoothPulseProblem(
     ψ_goal::AbstractVector,
     T::Int,
     Δt::Union{Float64, Vector{Float64}};
+    density_matrix_integrator=DensityMatrixIntegrator,
     ipopt_options::IpoptOptions=IpoptOptions(),
     piccolo_options::PiccoloOptions=PiccoloOptions(),
     constraints::Vector{<:AbstractConstraint}=AbstractConstraint[],
@@ -52,7 +53,7 @@ function DensityOperatorSmoothPulseProblem(
     end
 
     # Objective
-    J = DensityOperatorPureStateInfidelityObjective(:ρ⃗̃, ψ_goal; Q=Q)
+    J = DensityMatrixPureStateInfidelityLoss(:ρ⃗̃, ψ_goal, traj; Q=Q)
     J += QuadraticRegularizer(:a, traj, R_a)
     J += QuadraticRegularizer(:da, traj, R_da)
     J += QuadraticRegularizer(:dda, traj, R_dda)
@@ -74,7 +75,7 @@ function DensityOperatorSmoothPulseProblem(
 
     if piccolo_options.free_time
         if piccolo_options.timesteps_all_equal
-            push!(constraints, TimeStepsAllEqualConstraint(:Δt, traj))
+            push!(constraints, TimeStepsAllEqualConstraint(traj))
         end
     end
 
@@ -90,25 +91,10 @@ function DensityOperatorSmoothPulseProblem(
         push!(constraints, norm_con)
     end
 
-    # Integrators
-    # if piccolo_options.integrator == :pade
-    #     unitary_integrator =
-    #         UnitaryPadeIntegrator(system, :Ũ⃗, :a, traj; order=piccolo_options.pade_order)
-    # elseif piccolo_options.integrator == :exponential
-    #     unitary_integrator =
-    #         UnitaryExponentialIntegrator(system, :Ũ⃗, :a, traj)
-    # else
-    #     error("integrator must be one of (:pade, :exponential)")
-    # end
-
-    density_operator_integrator = DensityOperatorExponentialIntegrator(
-        :ρ⃗̃, :a, system, traj
-    )
-
     integrators = [
-        density_operator_integrator,
-        DerivativeIntegrator(:a, :da, traj),
-        DerivativeIntegrator(:da, :dda, traj),
+        density_matrix_integrator(system, traj, :ρ⃗̃, :a),
+        DerivativeIntegrator(traj, :a, :da),
+        DerivativeIntegrator(traj, :da, :dda),
     ]
 
     return DirectTrajOptProblem(
@@ -116,8 +102,5 @@ function DensityOperatorSmoothPulseProblem(
         J,
         integrators;
         constraints=constraints,
-        ipopt_options=ipopt_options,
-        piccolo_options=piccolo_options,
-        kwargs...
     )
 end
