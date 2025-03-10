@@ -111,7 +111,7 @@ function DensityOperatorSmoothPulseProblem(
         DerivativeIntegrator(:da, :dda, traj),
     ]
 
-    return QuantumControlProblem(
+    return DirectTrajOptProblem(
         traj,
         J,
         integrators;

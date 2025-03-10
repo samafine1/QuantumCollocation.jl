@@ -5,7 +5,7 @@ export UnitaryBangBangProblem
     UnitaryBangBangProblem(system::QuantumSystem, operator, T, Δt; kwargs...)
     UnitaryBangBangProblem(H_drift, H_drives, operator, T, Δt; kwargs...)
 
-Construct a `QuantumControlProblem` for a free-time unitary gate problem with bang-bang control pulses.
+Construct a `DirectTrajOptProblem` for a free-time unitary gate problem with bang-bang control pulses.
 
 ```math
 \begin{aligned}
@@ -72,7 +72,6 @@ function UnitaryBangBangProblem(
     operator::AbstractPiccoloOperator,
     T::Int,
     Δt::Union{Float64, Vector{Float64}};
-    ipopt_options::IpoptOptions=IpoptOptions(),
     piccolo_options::PiccoloOptions=PiccoloOptions(),
     state_name::Symbol = :Ũ⃗,
     control_name::Symbol = :a,
@@ -174,7 +173,7 @@ function UnitaryBangBangProblem(
         DerivativeIntegrator(control_names[1], control_names[2], traj),
     ]
 
-    return QuantumControlProblem(
+    return DirectTrajOptProblem(
         traj,
         J,
         integrators;

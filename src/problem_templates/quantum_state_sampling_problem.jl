@@ -121,7 +121,7 @@ function QuantumStateSamplingProblem(
         DerivativeIntegrator(control_names[2], control_names[3], traj),
     ]
 
-    return QuantumControlProblem(
+    return DirectTrajOptProblem(
         traj,
         J,
         integrators;

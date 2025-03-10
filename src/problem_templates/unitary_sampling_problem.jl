@@ -113,15 +113,12 @@ function UnitarySamplingProblem(
     ]
 
     # Objective
-    J = QuadraticRegularizer(control_name, traj, R_a; timestep_name=timestep_name)
-    J += QuadraticRegularizer(control_names[2], traj, R_da; timestep_name=timestep_name)
-    J += QuadraticRegularizer(control_names[3], traj, R_dda; timestep_name=timestep_name)
+    J = QuadraticRegularizer(control_name, traj, R_a)
+    J += QuadraticRegularizer(control_names[2], traj, R_da)
+    J += QuadraticRegularizer(control_names[3], traj, R_dda)
 
     for (weight, op, name) in zip(system_weights, operators, state_names)
-        J += weight * UnitaryInfidelityObjective(
-            name, traj, Q;
-            subspace=op isa EmbeddedOperator ? op.subspace_indices : nothing
-        )
+        J += UnitaryInfidelityLoss(op, name, traj; Q=weight * Q)
     end
 
     # Optional Piccolo constraints and objectives
@@ -133,36 +130,23 @@ function UnitarySamplingProblem(
     # Integrators
     unitary_integrators = AbstractIntegrator[]
     for (sys, Ũ⃗_name) in zip(systems, state_names)
-        if piccolo_options.integrator == :pade
-            push!(
-                unitary_integrators,
-                UnitaryPadeIntegrator(Ũ⃗_name, control_name, sys, traj; order=piccolo_options.pade_order)
-            )
-        elseif piccolo_options.integrator == :exponential
-            push!(
-                unitary_integrators,
-                UnitaryExponentialIntegrator(Ũ⃗_name, control_name, sys, traj)
-            )
-        else
-            error("integrator must be one of (:pade, :exponential)")
-        end
+        push!(
+            unitary_integrators,
+            UnitaryIntegrator(sys, traj, Ũ⃗_name, control_name)
+        )
     end
 
     integrators = [
         unitary_integrators...,
-        DerivativeIntegrator(control_name, control_names[2], traj),
-        DerivativeIntegrator(control_names[2], control_names[3], traj),
+        DerivativeIntegrator(traj, control_name, control_names[2]),
+        DerivativeIntegrator(traj, control_names[2], control_names[3]),
     ]
 
-    return QuantumControlProblem(
+    return DirectTrajOptProblem(
         traj,
         J,
         integrators;
         constraints=constraints,
-        ipopt_options=ipopt_options,
-        piccolo_options=piccolo_options,
-        control_name=control_name,
-        kwargs...
     )
 end
 
@@ -213,20 +197,20 @@ end
     operator = GATES[:H]
     systems(ζ) = QuantumSystem(ζ * GATES[:Z], [GATES[:X], GATES[:Y]])
 
-    ip_ops = IpoptOptions(print_level=1, recalc_y="yes", recalc_y_feas_tol=1e1)
+    ip_ops = IpoptOptions(print_level=1, recalc_y="yes", recalc_y_feas_tol=1e1, eval_hessian=false)
     pi_ops = PiccoloOptions(verbose=false)
 
     prob = UnitarySamplingProblem(
         systems, Normal(0, 0.05), n_samples, operator, T, Δt,
-        ipopt_options=ip_ops, piccolo_options=pi_ops
+        piccolo_options=pi_ops
     )
-    solve!(prob, max_iter=20)
+    solve!(prob, max_iter=20, options=ip_ops)
 
     d_prob = UnitarySmoothPulseProblem(
         systems(0), operator, T, Δt,
-        ipopt_options=ip_ops, piccolo_options=pi_ops
+        piccolo_options=pi_ops
     )
-    solve!(prob, max_iter=20)
+    solve!(d_prob, max_iter=20, options=ip_ops)
 
     # Check that the solution improves over the default
     # -------------------------------------------------
@@ -236,10 +220,10 @@ end
     default_fids = []
     for ζ in ζ_tests
         Ũ⃗_end = unitary_rollout(prob.trajectory.a, timesteps, systems(ζ))[:, end]
-        push!(fids, iso_vec_unitary_fidelity(Ũ⃗_end, Ũ⃗_goal))
+        push!(fids, unitary_fidelity(iso_vec_to_operator(Ũ⃗_end), iso_vec_to_operator(Ũ⃗_goal)))
 
         d_Ũ⃗_end = unitary_rollout(d_prob.trajectory.a, timesteps, systems(ζ))[:, end]
-        push!(default_fids, iso_vec_unitary_fidelity(d_Ũ⃗_end, Ũ⃗_goal))
+        push!(default_fids, unitary_fidelity(iso_vec_to_operator(d_Ũ⃗_end), iso_vec_to_operator(Ũ⃗_goal)))
     end
     @test sum(fids) > sum(default_fids)
 

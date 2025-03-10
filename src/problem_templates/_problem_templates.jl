@@ -3,12 +3,14 @@ module ProblemTemplates
 using ..DirectSums
 using ..Rollouts
 using ..TrajectoryInitialization
-using ..Losses
+using ..QuantumObjectives
+using ..QuantumIntegrators
+using ..Options
 
 using Distributions
 using TrajectoryIndexingUtils
 using NamedTrajectories
-using QuantumCollocationCore
+using DirectTrajOpt
 using PiccoloQuantumObjects
 using LinearAlgebra
 using SparseArrays
@@ -58,16 +60,17 @@ function apply_piccolo_options!(
         if piccolo_options.timesteps_all_equal
             push!(
                 constraints,
-                TimeStepsAllEqualConstraint(timestep_name, traj)
+                TimeStepsAllEqualConstraint(traj)
             )
         end
     end
 
     if !isnothing(piccolo_options.complex_control_norm_constraint_name)
-        norm_con = ComplexModulusContraint(
+        norm_con = NonlinearKnotPointConstraint(
+            a -> -[norm(a)^2 - piccolo_options.complex_control_norm_constraint_radius^2],
             piccolo_options.complex_control_norm_constraint_name,
-            piccolo_options.complex_control_norm_constraint_radius,
             traj;
+            equality=false,
         )
         push!(constraints, norm_con)
     end

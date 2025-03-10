@@ -12,7 +12,7 @@ export UnitaryRobustnessProblem
         kwargs...
     )
 
-    UnitaryRobustnessProblem(Hₑ, prob::QuantumControlProblem; kwargs...)
+    UnitaryRobustnessProblem(Hₑ, prob::DirectTrajOptProblem; kwargs...)
 
 Create a quantum control problem for robustness optimization of a unitary trajectory.
 
@@ -21,7 +21,7 @@ Create a quantum control problem for robustness optimization of a unitary trajec
 - `final_fidelity::Union{Real, Nothing}=nothing`: The target fidelity for the final unitary.
 - `ipopt_options::IpoptOptions=IpoptOptions()`: Options for the Ipopt solver.
 - `piccolo_options::PiccoloOptions=PiccoloOptions()`: Options for the Piccolo solver.
-- `kwargs...`: Additional keyword arguments passed to `QuantumControlProblem`.
+- `kwargs...`: Additional keyword arguments passed to `DirectTrajOptProblem`.
 """
 function UnitaryRobustnessProblem end
 
@@ -86,7 +86,7 @@ function UnitaryRobustnessProblem(
 
     push!(constraints, fidelity_constraint)
 
-    return QuantumControlProblem(
+    return DirectTrajOptProblem(
         trajectory,
         objective,
         integrators;
@@ -100,7 +100,7 @@ end
 
 function UnitaryRobustnessProblem(
     H_error::AbstractPiccoloOperator,
-    prob::QuantumControlProblem,
+    prob::DirectTrajOptProblem,
     sys::AbstractQuantumSystem;
     objective::Objective=get_objective(prob),
     constraints::AbstractVector{<:AbstractConstraint}=get_constraints(prob),
@@ -154,7 +154,7 @@ end
 
     # set up without a final fidelity
     # -------------------------------
-    @test UnitaryRobustnessProblem(H_embed, prob, sys) isa QuantumControlProblem
+    @test UnitaryRobustnessProblem(H_embed, prob, sys) isa DirectTrajOptProblem
 
 
     #  test robustness from previous problem
@@ -218,7 +218,7 @@ end
         system,
         phase_operators=phase_operators,
         subspace=U_goal.subspace,
-    ) isa QuantumControlProblem
+    ) isa DirectTrajOptProblem
 end
 
 @testitem "Set up a free phase problem" begin
@@ -260,5 +260,5 @@ end
         system;
         phase_operators=phase_operators,
         subspace=U_goal.subspace,
-    ) isa QuantumControlProblem
+    ) isa DirectTrajOptProblem
 end

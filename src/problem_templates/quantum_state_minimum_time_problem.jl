@@ -5,7 +5,7 @@ export QuantumStateMinimumTimeProblem
     QuantumStateMinimumTimeProblem(traj, sys, obj, integrators, constraints; kwargs...)
     QuantumStateMinimumTimeProblem(prob; kwargs...)
 
-Construct a `QuantumControlProblem` for the minimum time problem of reaching a target state.
+Construct a `DirectTrajOptProblem` for the minimum time problem of reaching a target state.
 
 # Arguments
 - `traj::NamedTrajectory`: The initial trajectory.
@@ -14,7 +14,7 @@ Construct a `QuantumControlProblem` for the minimum time problem of reaching a t
 - `integrators::Vector{<:AbstractIntegrator}`: The integrators.
 - `constraints::Vector{<:AbstractConstraint}`: The constraints.
 or
-- `prob::QuantumControlProblem`: The quantum control problem.
+- `prob::DirectTrajOptProblem`: The quantum control problem.
 
 # Keyword Arguments
 - `state_name::Symbol=:ψ̃`: The symbol for the state variables.
@@ -22,7 +22,7 @@ or
 - `D=1.0`: The cost weight on the time.
 - `ipopt_options::IpoptOptions=IpoptOptions()`: The Ipopt options.
 - `piccolo_options::PiccoloOptions=PiccoloOptions()`: The Piccolo options.
-- `kwargs...`: Additional keyword arguments, passed to `QuantumControlProblem`.
+- `kwargs...`: Additional keyword arguments, passed to `DirectTrajOptProblem`.
 
 """
 function QuantumStateMinimumTimeProblem end
@@ -62,7 +62,7 @@ function QuantumStateMinimumTimeProblem(
         push!(constraints, fidelity_constraint)
     end
 
-    return QuantumControlProblem(
+    return DirectTrajOptProblem(
         traj,
         obj,
         integrators;
@@ -75,7 +75,7 @@ function QuantumStateMinimumTimeProblem(
 end
 
 function QuantumStateMinimumTimeProblem(
-    prob::QuantumControlProblem;
+    prob::DirectTrajOptProblem;
     obj::Objective=get_objective(prob),
     constraints::AbstractVector{<:AbstractConstraint}=get_constraints(prob),
     ipopt_options::IpoptOptions=deepcopy(prob.ipopt_options),

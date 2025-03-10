@@ -4,7 +4,7 @@ export UnitaryDirectSumProblem
 @doc """
     UnitaryDirectSumProblem(probs, final_fidelity; kwargs...)
 
-Construct a `QuantumControlProblem` as a direct sum of unitary gate problems. The
+Construct a `DirectTrajOptProblem` as a direct sum of unitary gate problems. The
 purpose is to find solutions that are as close as possible with respect to one of
 their components. In particular, this is useful for finding interpolatable control solutions.
 
@@ -20,7 +20,7 @@ The default behavior is to use a 1D chain for the graph, i.e., enforce a `Pairwi
 between each neighbor of the provided `probs`.
 
 # Arguments
-- `probs::AbstractVector{<:QuantumControlProblem}`: the problems to combine
+- `probs::AbstractVector{<:DirectTrajOptProblem}`: the problems to combine
 - `final_fidelity::Real`: the fidelity to enforce between the component final unitaries and the component goal unitaries
 
 # Keyword Arguments
@@ -43,7 +43,7 @@ between each neighbor of the provided `probs`.
 
 """
 function UnitaryDirectSumProblem(
-    probs::AbstractVector{<:QuantumControlProblem},
+    probs::AbstractVector{<:DirectTrajOptProblem},
     final_fidelity::Real;
     prob_labels::AbstractVector{<:String}=[string(i) for i ∈ 1:length(probs)],
     graph::Union{Nothing, AbstractVector{<:Tuple{String, String}}, AbstractVector{<:Tuple{Symbol, Symbol}}}=nothing,
@@ -168,7 +168,7 @@ function UnitaryDirectSumProblem(
         end
     end
 
-    return QuantumControlProblem(
+    return DirectTrajOptProblem(
         traj,
         J,
         integrators;
@@ -184,7 +184,7 @@ end
 # *************************************************************************** #
 
 @testitem "Construct direct sum problem" begin
-    using QuantumCollocationCore
+    using DirectTrajOpt
     using PiccoloQuantumObjects
     sys = QuantumSystem(0.01 * GATES[:Z], [GATES[:X], GATES[:Y]])
     U_goal1 = GATES[:X]

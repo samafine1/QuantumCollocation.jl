@@ -125,12 +125,12 @@ function QuantumStateSmoothPulseProblem(
     ]
 
     # Objective
-    J = QuadraticRegularizer(control_names[1], traj, R_a; timestep_name=timestep_name)
-    J += QuadraticRegularizer(control_names[2], traj, R_da; timestep_name=timestep_name)
-    J += QuadraticRegularizer(control_names[3], traj, R_dda; timestep_name=timestep_name)
+    J = QuadraticRegularizer(control_names[1], traj, R_a)
+    J += QuadraticRegularizer(control_names[2], traj, R_da)
+    J += QuadraticRegularizer(control_names[3], traj, R_dda)
 
     for name ∈ state_names
-        J += QuantumStateObjective(name, traj, Q)
+        J += KetInfidelityLoss(name, traj; Q=Q)
     end
 
     # Optional Piccolo constraints and objectives
@@ -139,71 +139,78 @@ function QuantumStateSmoothPulseProblem(
         state_leakage_indices=leakage_indices
     )
 
-    # Integrators
+    # # Integrators
+    # state_integrators = []
+    # if length(ψ_inits) == 1
+    #     if piccolo_options.integrator == :pade
+    #         state_integrators = [QuantumStatePadeIntegrator(
+    #             state_name,
+    #             control_name,
+    #             sys,
+    #             traj;
+    #             order=piccolo_options.pade_order
+    #         )]
+    #     elseif piccolo_options.integrator == :exponential
+    #         state_integrators = [QuantumStateExponentialIntegrator(
+    #             state_name,
+    #             control_name,
+    #             sys,
+    #             traj
+    #         )]
+    #     else
+    #         error("integrator must be one of (:pade, :exponential)")
+    #     end
+    # else
+    #     state_names = [
+    #         name for name ∈ traj.names
+    #             if startswith(string(name), string(state_name))
+    #     ]
+    #     state_integrators = []
+    #     for i = 1:length(ψ_inits)
+    #         if piccolo_options.integrator == :pade
+    #             state_integrator = QuantumStatePadeIntegrator(
+    #                 state_names[i],
+    #                 control_name,
+    #                 sys,
+    #                 traj;
+    #                 order=piccolo_options.pade_order
+    #             )
+    #         elseif piccolo_options.integrator == :exponential
+    #             state_integrator = QuantumStateExponentialIntegrator(
+    #                 state_names[i],
+    #                 control_name,
+    #                 sys,
+    #                 traj
+    #             )
+    #         else
+    #             error("integrator must be one of (:pade, :exponential)")
+    #         end
+    #         push!(state_integrators, state_integrator)
+    #     end
+    # end
+
+    state_names = [
+        name for name ∈ traj.names
+            if startswith(string(name), string(state_name))
+    ]
+
     state_integrators = []
-    if length(ψ_inits) == 1
-        if piccolo_options.integrator == :pade
-            state_integrators = [QuantumStatePadeIntegrator(
-                state_name,
-                control_name,
-                sys,
-                traj;
-                order=piccolo_options.pade_order
-            )]
-        elseif piccolo_options.integrator == :exponential
-            state_integrators = [QuantumStateExponentialIntegrator(
-                state_name,
-                control_name,
-                sys,
-                traj
-            )]
-        else
-            error("integrator must be one of (:pade, :exponential)")
-        end
-    else
-        state_names = [
-            name for name ∈ traj.names
-                if startswith(string(name), string(state_name))
-        ]
-        state_integrators = []
-        for i = 1:length(ψ_inits)
-            if piccolo_options.integrator == :pade
-                state_integrator = QuantumStatePadeIntegrator(
-                    state_names[i],
-                    control_name,
-                    sys,
-                    traj;
-                    order=piccolo_options.pade_order
-                )
-            elseif piccolo_options.integrator == :exponential
-                state_integrator = QuantumStateExponentialIntegrator(
-                    state_names[i],
-                    control_name,
-                    sys,
-                    traj
-                )
-            else
-                error("integrator must be one of (:pade, :exponential)")
-            end
-            push!(state_integrators, state_integrator)
-        end
+
+    for name ∈ state_names
+        push!(state_integrators, KetIntegrator(sys, traj, name, control_name))
     end
 
     integrators = [
         state_integrators...,
-        DerivativeIntegrator(control_name, control_names[2], traj),
-        DerivativeIntegrator(control_names[2], control_names[3], traj)
+        DerivativeIntegrator(traj, control_name, control_names[2]),
+        DerivativeIntegrator(traj, control_names[2], control_names[3])
     ]
 
-    return QuantumControlProblem(
+    return DirectTrajOptProblem(
         traj,
         J,
         integrators;
         constraints=constraints,
-        ipopt_options=ipopt_options,
-        piccolo_options=piccolo_options,
-        control_name=control_name,
-        kwargs...
     )
 end
 
