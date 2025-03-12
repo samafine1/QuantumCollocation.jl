@@ -98,7 +98,6 @@ function UnitarySmoothPulseProblem(
     constraints::Vector{<:AbstractConstraint}=AbstractConstraint[],
     kwargs...
 )
-    println(typeof(unitary_integrator))
 
     # Trajectory
     if !isnothing(init_trajectory)
@@ -228,16 +227,17 @@ end
     T = 51
     Δt = 0.2
 
+    print_level = 1 # 5 is normal
+
     # Test embedded operator
     # ----------------------
     prob = UnitarySmoothPulseProblem(
         sys, U_goal, T, Δt,
-        ipopt_options=IpoptOptions(print_level=1),
         piccolo_options=PiccoloOptions(verbose=false)
     )
 
     initial = unitary_rollout_fidelity(prob.trajectory, sys, subspace=U_goal.subspace)
-    solve!(prob, max_iter=20)
+    solve!(prob, max_iter=50, options=IpoptOptions(print_level=print_level))
     final = unitary_rollout_fidelity(prob.trajectory, sys, subspace=U_goal.subspace)
     @test final > initial
 
@@ -252,12 +252,11 @@ end
     prob = UnitarySmoothPulseProblem(
         sys, U_goal, T, Δt,
         leakage_suppression=true, R_leakage=1e-1,
-        ipopt_options=IpoptOptions(print_level=1),
         piccolo_options=PiccoloOptions(verbose=false)
     )
 
     initial = unitary_rollout_fidelity(prob.trajectory, sys, subspace=U_goal.subspace)
-    solve!(prob, max_iter=50, options=IpoptOptions(print_level=1, eval_hessian=false))
+    solve!(prob, max_iter=50, options=IpoptOptions(print_level=print_level))
     final = unitary_rollout_fidelity(prob.trajectory, sys, subspace=U_goal.subspace)
     @test final > initial
 end

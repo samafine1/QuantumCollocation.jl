@@ -58,7 +58,7 @@ function unitary_subspace_infidelity_loss(
     U = iso_vec_to_operator(Ũ⃗)[subspace, subspace]
     n = length(subspace)
     M = U_goal'U
-    ℱ = 1 / (n * (n + 1)) * (tr(M'M) + abs2(tr(M))) 
+    ℱ = 1 / (n * (n + 1)) * (abs(tr(M'M)) + abs2(tr(M))) 
     return abs(1 - ℱ)
 end
 
