@@ -31,6 +31,7 @@ include("quantum_state_sampling_problem.jl")
 
 include("density_operator_smooth_pulse_problem.jl")
 
+
 function apply_piccolo_options!(
     J::Objective,
     constraints::AbstractVector{<:AbstractConstraint},
@@ -39,8 +40,13 @@ function apply_piccolo_options!(
     state_names::AbstractVector{Symbol},
     timestep_name::Symbol;
     state_leakage_indices::Union{Nothing, AbstractVector{<:AbstractVector{Int}}}=nothing,
+    free_time::Bool=true,
 )
     if piccolo_options.leakage_suppression
+        if piccolo_options.verbose
+            println("\tapplying leakage suppression: $(state_names)")
+        end
+
         if isnothing(state_leakage_indices)
             error("You must provide leakage indices for leakage suppression.")
         end
@@ -56,7 +62,10 @@ function apply_piccolo_options!(
         end
     end
 
-    if piccolo_options.free_time
+    if free_time
+        if piccolo_options.verbose
+            println("\tapplying timesteps_all_equal constraint: $(traj.timestep)")
+        end
         if piccolo_options.timesteps_all_equal
             push!(
                 constraints,
@@ -66,6 +75,9 @@ function apply_piccolo_options!(
     end
 
     if !isnothing(piccolo_options.complex_control_norm_constraint_name)
+        if piccolo_options.verbose
+            println("\tapplying complex control norm constraint: $(piccolo_options.complex_control_norm_constraint_name)")
+        end
         norm_con = NonlinearKnotPointConstraint(
             a -> -[norm(a)^2 - piccolo_options.complex_control_norm_constraint_radius^2],
             piccolo_options.complex_control_norm_constraint_name,
@@ -86,6 +98,7 @@ function apply_piccolo_options!(
     state_name::Symbol,
     timestep_name::Symbol;
     state_leakage_indices::Union{Nothing, AbstractVector{Int}}=nothing,
+    kwargs...
 )
     state_names = [
         name for name ∈ traj.names
@@ -100,6 +113,7 @@ function apply_piccolo_options!(
         state_names,
         timestep_name;
         state_leakage_indices=isnothing(state_leakage_indices) ? nothing : fill(state_leakage_indices, length(state_names)),
+        kwargs...
     )
 end
 
