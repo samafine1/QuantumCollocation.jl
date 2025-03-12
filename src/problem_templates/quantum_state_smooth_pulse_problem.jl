@@ -60,7 +60,7 @@ function QuantumStateSmoothPulseProblem(
     ψ_goals::Vector{<:AbstractVector{<:ComplexF64}},
     T::Int,
     Δt::Union{Float64, <:AbstractVector{Float64}};
-    ipopt_options::IpoptOptions=IpoptOptions(),
+    ket_integrator=KetIntegrator,
     piccolo_options::PiccoloOptions=PiccoloOptions(),
     state_name::Symbol=:ψ̃,
     control_name::Symbol=:a,
@@ -139,56 +139,6 @@ function QuantumStateSmoothPulseProblem(
         state_leakage_indices=leakage_indices
     )
 
-    # # Integrators
-    # state_integrators = []
-    # if length(ψ_inits) == 1
-    #     if piccolo_options.integrator == :pade
-    #         state_integrators = [QuantumStatePadeIntegrator(
-    #             state_name,
-    #             control_name,
-    #             sys,
-    #             traj;
-    #             order=piccolo_options.pade_order
-    #         )]
-    #     elseif piccolo_options.integrator == :exponential
-    #         state_integrators = [QuantumStateExponentialIntegrator(
-    #             state_name,
-    #             control_name,
-    #             sys,
-    #             traj
-    #         )]
-    #     else
-    #         error("integrator must be one of (:pade, :exponential)")
-    #     end
-    # else
-    #     state_names = [
-    #         name for name ∈ traj.names
-    #             if startswith(string(name), string(state_name))
-    #     ]
-    #     state_integrators = []
-    #     for i = 1:length(ψ_inits)
-    #         if piccolo_options.integrator == :pade
-    #             state_integrator = QuantumStatePadeIntegrator(
-    #                 state_names[i],
-    #                 control_name,
-    #                 sys,
-    #                 traj;
-    #                 order=piccolo_options.pade_order
-    #             )
-    #         elseif piccolo_options.integrator == :exponential
-    #             state_integrator = QuantumStateExponentialIntegrator(
-    #                 state_names[i],
-    #                 control_name,
-    #                 sys,
-    #                 traj
-    #             )
-    #         else
-    #             error("integrator must be one of (:pade, :exponential)")
-    #         end
-    #         push!(state_integrators, state_integrator)
-    #     end
-    # end
-
     state_names = [
         name for name ∈ traj.names
             if startswith(string(name), string(state_name))
@@ -197,7 +147,10 @@ function QuantumStateSmoothPulseProblem(
     state_integrators = []
 
     for name ∈ state_names
-        push!(state_integrators, KetIntegrator(sys, traj, name, control_name))
+        push!(
+            state_integrators, 
+            ket_integrator(sys, traj, name, control_name)
+        )
     end
 
     integrators = [
