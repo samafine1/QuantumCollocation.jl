@@ -45,7 +45,8 @@ function unitary_infidelity_loss(
     U_goal::AbstractMatrix{<:Complex{Float64}}
 )
     U = iso_vec_to_operator(Ũ⃗)
-    ℱ = abs2(tr(U_goal' * U))
+    n = size(U, 1)
+    ℱ = abs2(tr(U_goal' * U)) / n^2
     return abs(1 - ℱ) 
 end
 

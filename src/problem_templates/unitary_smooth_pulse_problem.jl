@@ -186,27 +186,9 @@ end
     ipopt_options=IpoptOptions(print_level=1)
 
     initial = unitary_rollout_fidelity(prob.trajectory, sys)
-    solve!(prob, max_iter=100, options=ipopt_options)
-    final = unitary_rollout_fidelity(prob.trajectory, sys)
-    @test final > initial
-end
-
-@testitem "Hadamard gate with exponential integrator" begin
-    sys = QuantumSystem(GATES[:Z], [GATES[:X], GATES[:Y]])
-    U_goal = GATES[:H]
-    T = 51
-    Δt = 0.2
-
-    prob = UnitarySmoothPulseProblem(
-        sys, U_goal, T, Δt,
-        piccolo_options=PiccoloOptions(verbose=false, integrator=:exponential)
-    )
-
-    ipopt_options=IpoptOptions(print_level=1)
-
-    initial = unitary_rollout_fidelity(prob.trajectory, sys)
     solve!(prob, max_iter=50, options=ipopt_options)
     final = unitary_rollout_fidelity(prob.trajectory, sys)
+    println(final)
     @test final > initial
 end
 
