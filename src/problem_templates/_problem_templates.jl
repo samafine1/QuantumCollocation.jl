@@ -1,7 +1,5 @@
 module ProblemTemplates
 
-using ..DirectSums
-using ..Rollouts
 using ..TrajectoryInitialization
 using ..QuantumObjectives
 using ..QuantumConstraints
