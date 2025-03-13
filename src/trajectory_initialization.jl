@@ -290,7 +290,7 @@ function initialize_trajectory(
         Symbol("d"^i * string(control_name)) for i = 1:n_control_derivatives
     ]
     if verbose
-        println("control_derivative_names: $control_derivative_names")
+        println("\tcontrol derivative names: $control_derivative_names")
     end
 
     control_names = (control_name, control_derivative_names...)

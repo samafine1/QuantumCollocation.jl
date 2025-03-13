@@ -17,6 +17,9 @@ include("trajectory_interpolations.jl")
 include("quantum_objectives.jl")
 @reexport using .QuantumObjectives
 
+include("quantum_constraints.jl")
+@reexport using .QuantumConstraints
+
 include("quantum_integrators.jl")
 @reexport using .QuantumIntegrators
 

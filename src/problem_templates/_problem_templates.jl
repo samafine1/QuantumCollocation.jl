@@ -4,10 +4,10 @@ using ..DirectSums
 using ..Rollouts
 using ..TrajectoryInitialization
 using ..QuantumObjectives
+using ..QuantumConstraints
 using ..QuantumIntegrators
 using ..Options
 
-using Distributions
 using TrajectoryIndexingUtils
 using NamedTrajectories
 using DirectTrajOpt
@@ -20,10 +20,7 @@ using TestItems
 
 include("unitary_smooth_pulse_problem.jl")
 include("unitary_minimum_time_problem.jl")
-include("unitary_robustness_problem.jl")
-include("unitary_direct_sum_problem.jl")
 include("unitary_sampling_problem.jl")
-include("unitary_bang_bang_problem.jl")
 
 include("quantum_state_smooth_pulse_problem.jl")
 include("quantum_state_minimum_time_problem.jl")
@@ -43,23 +40,23 @@ function apply_piccolo_options!(
     free_time::Bool=true,
 )
     if piccolo_options.leakage_suppression
-        if piccolo_options.verbose
-            println("\tapplying leakage suppression: $(state_names)")
-        end
+        throw(error("L1 is not implemented."))
+        # if piccolo_options.verbose
+        #     println("\tapplying leakage suppression: $(state_names)")
+        # end
 
-        if isnothing(state_leakage_indices)
-            error("You must provide leakage indices for leakage suppression.")
-        end
-        for (state_name, leakage_indices) ∈ zip(state_names, state_leakage_indices)
-            J += L1Regularizer!(
-                constraints,
-                state_name,
-                traj;
-                R_value=piccolo_options.R_leakage,
-                indices=leakage_indices,
-                eval_hessian=piccolo_options.eval_hessian
-            )
-        end
+        # if isnothing(state_leakage_indices)
+        #     error("You must provide leakage indices for leakage suppression.")
+        # end
+        # for (state_name, leakage_indices) ∈ zip(state_names, state_leakage_indices)
+        #     J += L1Regularizer!(
+        #         constraints,
+        #         state_name,
+        #         traj;
+        #         R_value=piccolo_options.R_leakage,
+        #         indices=leakage_indices,
+        #     )
+        # end
     end
 
     if free_time
