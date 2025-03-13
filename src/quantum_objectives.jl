@@ -50,20 +50,20 @@ function unitary_infidelity_loss(
     return abs(1 - ℱ) 
 end
 
-function unitary_subspace_infidelity_loss(
+function unitary_infidelity_loss(
     Ũ⃗::AbstractVector,
-    U_goal::AbstractMatrix{<:Complex{Float64}},
-    subspace::AbstractVector{Int}
+    op::EmbeddedOperator
 )
-    U = iso_vec_to_operator(Ũ⃗)[subspace, subspace]
-    n = length(subspace)
+    U_goal = unembed(op)
+    U = iso_vec_to_operator(Ũ⃗)[op.subspace, op.subspace]
+    n = length(op.subspace)
     M = U_goal'U
     ℱ = 1 / (n * (n + 1)) * (abs(tr(M'M)) + abs2(tr(M))) 
     return abs(1 - ℱ)
 end
 
 function UnitaryInfidelityLoss(
-    U_goal::AbstractMatrix{<:Complex{Float64}},
+    U_goal::AbstractPiccoloOperator,
     Ũ⃗_name::Symbol,
     traj::NamedTrajectory;
     Q=100.0
@@ -71,18 +71,6 @@ function UnitaryInfidelityLoss(
     ℓ = Ũ⃗ -> unitary_infidelity_loss(Ũ⃗, U_goal)
     return TerminalLoss(ℓ, Ũ⃗_name, traj; Q=Q)
 end
-
-function UnitaryInfidelityLoss(
-    op::EmbeddedOperator,
-    Ũ⃗_name::Symbol,
-    traj::NamedTrajectory;
-    Q=100.0
-)
-    U_goal = unembed(op)
-    ℓ = Ũ⃗ -> unitary_subspace_infidelity_loss(Ũ⃗, U_goal, op.subspace)
-    return TerminalLoss(ℓ, Ũ⃗_name, traj; Q=Q)
-end
-
 
 # ---------------------------------------------------------
 #                        Density Matrices
