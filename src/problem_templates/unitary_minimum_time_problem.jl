@@ -45,7 +45,7 @@ function UnitaryMinimumTimeProblem(
     constraints::AbstractVector{<:AbstractConstraint};
     unitary_name::Symbol=:Ũ⃗,
     final_fidelity::Float64=1.0,
-    D::Float64=1.0,
+    D::Float64=100.0,
     piccolo_options::PiccoloOptions=PiccoloOptions(),
 )
     if piccolo_options.verbose

@@ -23,7 +23,7 @@ function QuantumStateMinimumTimeProblem(
     constraints::Vector{<:AbstractConstraint};
     state_name::Symbol=:ψ̃,
     final_fidelity::Float64=1.0,
-    D=1.0,
+    D=100.0,
     piccolo_options::PiccoloOptions=PiccoloOptions(),
 )
     state_names = [name for name in trajectory.names if startswith(string(name), string(state_name))]
