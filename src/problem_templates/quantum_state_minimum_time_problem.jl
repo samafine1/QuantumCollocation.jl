@@ -77,6 +77,14 @@ function QuantumStateMinimumTimeProblem(
     )
 end
 
+function QuantumStateMinimumTimeProblem(
+    prob::DirectTrajOptProblem,
+    ψ_goal::AbstractVector{<:ComplexF64};
+    kwargs...
+)
+    return QuantumStateMinimumTimeProblem(prob, [ψ_goal]; kwargs...)
+end
+
 # *************************************************************************** #
 
 @testitem "Test quantum state minimum time" begin
