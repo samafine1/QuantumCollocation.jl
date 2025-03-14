@@ -150,6 +150,8 @@ end
 # *************************************************************************** #
 
 @testitem "Sample systems with single initial, target" begin
+    using PiccoloQuantumObjects
+
     T = 50
     Δt = 0.2
     sys1 = QuantumSystem(0.3 * GATES[:Z], [GATES[:X], GATES[:Y]])
@@ -181,6 +183,8 @@ end
 end
 
 @testitem "Sample systems with multiple initial, target" begin
+    using PiccoloQuantumObjects
+
     T = 50
     Δt = 0.2
     sys1 = QuantumSystem(0.3 * GATES[:Z], [GATES[:X], GATES[:Y]])

@@ -188,6 +188,8 @@ end
 # *************************************************************************** #
 
 @testitem "Test quantum state smooth pulse" begin
+    using PiccoloQuantumObjects 
+
     T = 51
     Δt = 0.2
     sys = QuantumSystem(0.1 * GATES[:Z], [GATES[:X], GATES[:Y]])
@@ -207,6 +209,8 @@ end
 end
 
 @testitem "Test multiple quantum states smooth pulse" begin
+    using PiccoloQuantumObjects 
+
     T = 50
     Δt = 0.2
     sys = QuantumSystem(0.1 * GATES[:Z], [GATES[:X], GATES[:Y]])

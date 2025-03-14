@@ -95,6 +95,7 @@ end
 
 @testitem "Minimum time Hadamard gate" begin
     using NamedTrajectories
+    using PiccoloQuantumObjects 
 
     H_drift = PAULIS[:Z]
     H_drives = [PAULIS[:X], PAULIS[:Y]]

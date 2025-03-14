@@ -582,6 +582,7 @@ end
 
 @testitem "Geodesic" begin
     using LinearAlgebra
+    using PiccoloQuantumObjects 
 
     ## Group 1: identity to X (π rotation)
 
@@ -638,6 +639,8 @@ end
 
 @testitem "unitary trajectory initialization" begin
     using NamedTrajectories
+    using PiccoloQuantumObjects 
+
     U_goal = GATES[:X]
     T = 10
     Δt = 0.1

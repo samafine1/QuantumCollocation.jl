@@ -164,6 +164,8 @@ end
 # *************************************************************************** #
 
 @testitem "Sample robustness test" begin
+    using PiccoloQuantumObjects 
+
     T = 50
     Δt = 0.2
     timesteps = fill(Δt, T)

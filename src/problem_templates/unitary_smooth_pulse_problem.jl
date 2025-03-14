@@ -166,6 +166,8 @@ end
 # *************************************************************************** #
 
 @testitem "Hadamard gate" begin
+    using PiccoloQuantumObjects 
+
     sys = QuantumSystem(GATES[:Z], [GATES[:X], GATES[:Y]])
     U_goal = GATES[:H]
     T = 51
@@ -184,6 +186,8 @@ end
 end
 
 @testitem "Hadamard gate with bound states and control norm constraint" begin
+    using PiccoloQuantumObjects 
+
     sys = QuantumSystem(GATES[:Z], [GATES[:X], GATES[:Y]])
     U_goal = GATES[:H]
     T = 51
@@ -205,6 +209,8 @@ end
 end
 
 @testitem "EmbeddedOperator Hadamard gate" begin
+    using PiccoloQuantumObjects 
+
     a = annihilate(3)
     sys = QuantumSystem([(a + a')/2, (a - a')/(2im)])
     U_goal = EmbeddedOperator(GATES[:H], sys)
