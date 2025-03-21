@@ -1,5 +1,7 @@
 module ProblemTemplates
 
+export apply_piccolo_options!
+
 using ..TrajectoryInitialization
 using ..QuantumObjectives
 using ..QuantumConstraints
@@ -17,6 +19,8 @@ using JLD2
 using TestItems
 
 include("unitary_smooth_pulse_problem.jl")
+include("adjoint_smooth_pulse_problem.jl")
+
 include("unitary_minimum_time_problem.jl")
 include("unitary_sampling_problem.jl")
 
