@@ -424,6 +424,7 @@ function initialize_trajectory(
     # Construct phase data
     phase_data = isnothing(phase_operators) ? nothing : π * randn(length(phase_operators))
 
+    
     return initialize_trajectory(
         [Ũ⃗_traj],
         [Ũ⃗_init],
@@ -437,6 +438,8 @@ function initialize_trajectory(
         kwargs...
     )
 end
+
+
 
 """
     initialize_trajectory

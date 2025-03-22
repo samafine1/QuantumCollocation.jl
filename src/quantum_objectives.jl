@@ -6,6 +6,7 @@ export density_matrix_pure_state_infidelity_loss
 export KetInfidelityLoss
 export UnitaryInfidelityLoss
 export DensityMatrixPureStateInfidelityLoss
+export UnitaryNormLoss
 
 using LinearAlgebra
 using NamedTrajectories
@@ -93,6 +94,23 @@ function DensityMatrixPureStateInfidelityLoss(
 )
     ℓ = ρ̃ -> density_matrix_pure_state_infidelity_loss(ρ̃, ψ_goal)
     return TerminalLoss(ℓ, ρ̃_name, traj; Q=Q)
+end
+
+
+function UnitaryNormLoss(
+    name::Symbol,
+    traj::NamedTrajectory,
+    times::AbstractVector;
+    Q::Float64=100.0
+)
+    ℓ = Ũ⃗-> 1/(Ũ⃗'Ũ⃗) * length(Ũ⃗)
+    return KnotPointObjective(
+        ℓ,
+        name,
+        traj;
+        Qs=Q * ones(length(times)),
+        times=times
+    )
 end
 
 end

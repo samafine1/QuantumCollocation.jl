@@ -1,10 +1,10 @@
 export AdjointUnitarySmoothPulseProblem
-
 function AdjointUnitarySmoothPulseProblem(
-    system::AbstractQuantumSystem,
+    system::ParameterizedQuantumSystem,
     goal::AbstractPiccoloOperator,
     T::Int,
     Δt::Union{Float64, <:AbstractVector{Float64}};
+    times::Union{AbstractVector,Nothing}=nothing,
     unitary_integrator=AdjointUnitaryIntegrator,
     state_name::Symbol = :Ũ⃗,
     state_adjoint_name::Symbol = :Ũ⃗ₐ,
@@ -20,16 +20,17 @@ function AdjointUnitarySmoothPulseProblem(
     dda_bounds::Vector{Float64}=fill(dda_bound, system.n_drives),
     Δt_min::Float64=Δt isa Float64 ? 0.5 * Δt : 0.5 * mean(Δt),
     Δt_max::Float64=Δt isa Float64 ? 1.5 * Δt : 1.5 * mean(Δt),
-    Q::Float64=100.0,
+    Q = 1.0,
     R=1e-2,
     R_a::Union{Float64, Vector{Float64}}=R,
     R_da::Union{Float64, Vector{Float64}}=R,
     R_dda::Union{Float64, Vector{Float64}}=R,
     constraints::Vector{<:AbstractConstraint}=AbstractConstraint[],
     piccolo_options::PiccoloOptions=PiccoloOptions(),
+    final_fidelity::Float64 = 1.0,
 )
     if piccolo_options.verbose
-        println("    constructing UnitarySmoothPulseProblem...")
+        println("    constructing AdjointUnitarySmoothPulseProblem...")
         println("\tusing integrator: $(typeof(unitary_integrator))")
     end
 
@@ -57,21 +58,34 @@ function AdjointUnitarySmoothPulseProblem(
         )
     end
 
-    # adj  = adjoint_unitary_rollout(traj,system)[2]
-    # add_component!(traj,state_adjoint_name,adj;type=:state)
+    adj = traj[state_name]
+    adj[:,1] *= 0 
 
+    if !isnothing(init_trajectory)
+        adj = adjoint_unitary_rollout(traj,system;unitary_name=state_name,drive_name = control_name)[2]
+    end 
 
-    # Objective
-    J = UnitaryInfidelityLoss(goal, state_name, traj; Q=Q)
+    add_component!(traj,state_adjoint_name,adj;type=:state)
+    traj.initial = merge(traj.initial, (state_adjoint_name => adj[:,1], ))
+
+    fidelity_constraint = FinalUnitaryFidelityConstraint(
+        goal, state_name, final_fidelity, traj
+    )
+
+    constraints = push!(constraints, fidelity_constraint)
 
     control_names = [
         name for name ∈ traj.names
             if endswith(string(name), string(control_name))
     ]
 
-    J += QuadraticRegularizer(control_names[1], traj, R_a)
+    J = QuadraticRegularizer(control_names[1], traj, R_a)
     J += QuadraticRegularizer(control_names[2], traj, R_da)
     J += QuadraticRegularizer(control_names[3], traj, R_dda)
+
+    if(!isnothing(times))
+        J += UnitaryNormLoss(state_adjoint_name, traj, times; Q)
+    end
 
     # Optional Piccolo constraints and objectives
     apply_piccolo_options!(
