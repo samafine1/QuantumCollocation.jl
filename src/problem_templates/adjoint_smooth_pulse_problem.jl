@@ -4,7 +4,8 @@ function AdjointUnitarySmoothPulseProblem(
     goal::AbstractPiccoloOperator,
     T::Int,
     Δt::Union{Float64, <:AbstractVector{Float64}};
-    times::Union{AbstractVector,Nothing}=nothing,
+    times::Vector{<:Union{AbstractVector,Nothing}}=[nothing for s∈system.Gₐ],
+    down_times::Vector{<:Union{AbstractVector,Nothing}}=[nothing for s∈system.Gₐ],
     unitary_integrator=AdjointUnitaryIntegrator,
     state_name::Symbol = :Ũ⃗,
     state_adjoint_name::Symbol = :Ũ⃗ₐ,
@@ -36,7 +37,7 @@ function AdjointUnitarySmoothPulseProblem(
 
     # Trajectory
     if !isnothing(init_trajectory)
-        traj = init_trajectory
+        traj = copy(init_trajectory)
     else
         traj = initialize_trajectory(
             goal,
@@ -52,21 +53,36 @@ function AdjointUnitarySmoothPulseProblem(
             geodesic=piccolo_options.geodesic,
             bound_state=piccolo_options.bound_state,
             a_guess=a_guess,
-            system=system,
             rollout_integrator=piccolo_options.rollout_integrator,
             verbose=piccolo_options.verbose
         )
     end
 
-    adj = traj[state_name]
-    adj[:,1] *= 0 
 
-    if !isnothing(init_trajectory)
-        adj = adjoint_unitary_rollout(traj,system;unitary_name=state_name,drive_name = control_name)[2]
-    end 
 
-    add_component!(traj,state_adjoint_name,adj;type=:state)
-    traj.initial = merge(traj.initial, (state_adjoint_name => adj[:,1], ))
+    adj = [traj[state_name] for s ∈ system.Gₐ]
+    
+
+    # for a∈adj
+    #     a[:,1] *= 0 
+    # end
+
+
+    full_rollout =  adjoint_unitary_rollout(traj, system ;unitary_name=state_name,drive_name = control_name)[2]
+
+    for i in 1:length(system.Gₐ)
+        adj[i] = full_rollout[i]
+    end
+
+
+    state_adjoint_names = [add_suffix(state_adjoint_name,string(i)) for i in 1:length(system.Gₐ)]
+
+
+    for (name,a) in zip(state_adjoint_names,adj)
+        add_component!(traj,name,a;type=:state)
+        traj.initial = merge(traj.initial, (name=> a[:,1], ))
+        
+    end
 
     fidelity_constraint = FinalUnitaryFidelityConstraint(
         goal, state_name, final_fidelity, traj
@@ -83,8 +99,16 @@ function AdjointUnitarySmoothPulseProblem(
     J += QuadraticRegularizer(control_names[2], traj, R_da)
     J += QuadraticRegularizer(control_names[3], traj, R_dda)
 
-    if(!isnothing(times))
-        J += UnitaryNormLoss(state_adjoint_name, traj, times; Q)
+    for (name,t) ∈ zip(state_adjoint_names,times)
+        if(!isnothing(t))
+            J += UnitaryNormLoss(name, traj, t; Q=Q)
+        end
+    end
+
+    for (name,down_t) ∈ zip(state_adjoint_names,down_times)
+        if(!isnothing(down_t))
+            J += UnitaryNormLoss(name, traj, down_t; Q=Q, rep = false)
+        end
     end
 
     # Optional Piccolo constraints and objectives
@@ -94,7 +118,7 @@ function AdjointUnitarySmoothPulseProblem(
     )
 
     integrators = [
-        unitary_integrator(system, traj, state_name,state_adjoint_name,control_name),
+        unitary_integrator(system, traj, state_name,state_adjoint_names,control_name),
         DerivativeIntegrator(traj, control_name, control_names[2]),
         DerivativeIntegrator(traj, control_names[2], control_names[3]),
     ]

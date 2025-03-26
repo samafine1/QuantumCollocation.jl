@@ -45,10 +45,17 @@ function AdjointUnitaryIntegrator(
     sys::ParameterizedQuantumSystem,
     traj::NamedTrajectory, 
     Ũ⃗::Symbol, 
-    Ũ⃗ₐ::Symbol,
+    Ũ⃗ₐ::Vector{Symbol},
     a::Symbol
 ) 
-    Ĝ = a_ ->  [I(sys.levels) ⊗ sys.G(a_) I(sys.levels) ⊗ sys.Gₐ(a_) ; I(sys.levels) ⊗ sys.G(a_)*0 I(sys.levels) ⊗ sys.G(a_) ]
+    n_sys = length(sys.Gₐ)
+    
+    G = a_ -> I(sys.levels) ⊗ sys.G(a_)
+
+    Gai = (i,a_) -> I(sys.levels) ⊗ sys.Gₐ[i](a_)
+
+    Ĝ = a_ ->  vcat(reduce(vcat,[[zeros(size(G(a_))[1],(i-1) * size(G(a_))[1]) G(a_) zeros(size(G(a_))[1],(n_sys-i) * size(G(a_))[1]) Gai(i,a_)] for i in 1:length(sys.Gₐ)]),[zeros(size(G(a_))[1],size(G(a_))[1]*n_sys) G(a_)])
+
     return AdjointBilinearIntegrator(Ĝ, traj, Ũ⃗, Ũ⃗ₐ, a)
 end
 

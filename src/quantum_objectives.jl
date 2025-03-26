@@ -101,9 +101,14 @@ function UnitaryNormLoss(
     name::Symbol,
     traj::NamedTrajectory,
     times::AbstractVector;
-    Q::Float64=100.0
+    Q::Float64=100.0,
+    rep = true
 )
-    ℓ = Ũ⃗-> 1/(Ũ⃗'Ũ⃗) * length(Ũ⃗)
+    if(rep)
+        ℓ = Ũ⃗-> 1/(Ũ⃗'Ũ⃗) * length(Ũ⃗)
+    else
+        ℓ = Ũ⃗-> (Ũ⃗'Ũ⃗) / length(Ũ⃗)
+    end
     return KnotPointObjective(
         ℓ,
         name,
@@ -112,5 +117,6 @@ function UnitaryNormLoss(
         times=times
     )
 end
+
 
 end
