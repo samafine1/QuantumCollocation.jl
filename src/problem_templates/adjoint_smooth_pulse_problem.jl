@@ -12,7 +12,6 @@ function AdjointUnitarySmoothPulseProblem(
     control_name::Symbol = :a,
     timestep_name::Symbol = :Δt,
     init_trajectory::Union{NamedTrajectory, Nothing}=nothing,
-    a_guess::Union{Matrix{Float64}, Nothing}=nothing,
     a_bound::Float64=1.0,
     a_bounds=fill(a_bound, system.n_drives),
     da_bound::Float64=Inf,
@@ -21,7 +20,8 @@ function AdjointUnitarySmoothPulseProblem(
     dda_bounds::Vector{Float64}=fill(dda_bound, system.n_drives),
     Δt_min::Float64=Δt isa Float64 ? 0.5 * Δt : 0.5 * mean(Δt),
     Δt_max::Float64=Δt isa Float64 ? 1.5 * Δt : 1.5 * mean(Δt),
-    Q = 1.0,
+    Q::Float64 = 1.0,
+    Qd::Float64=2.0,  
     R=1e-2,
     R_a::Union{Float64, Vector{Float64}}=R,
     R_da::Union{Float64, Vector{Float64}}=R,
@@ -37,7 +37,7 @@ function AdjointUnitarySmoothPulseProblem(
 
     # Trajectory
     if !isnothing(init_trajectory)
-        traj = copy(init_trajectory)
+        traj = deepcopy(init_trajectory)
     else
         traj = initialize_trajectory(
             goal,
@@ -52,7 +52,6 @@ function AdjointUnitarySmoothPulseProblem(
             zero_initial_and_final_derivative=piccolo_options.zero_initial_and_final_derivative,
             geodesic=piccolo_options.geodesic,
             bound_state=piccolo_options.bound_state,
-            a_guess=a_guess,
             rollout_integrator=piccolo_options.rollout_integrator,
             verbose=piccolo_options.verbose
         )
@@ -107,9 +106,18 @@ function AdjointUnitarySmoothPulseProblem(
 
     for (name,down_t) ∈ zip(state_adjoint_names,down_times)
         if(!isnothing(down_t))
-            J += UnitaryNormLoss(name, traj, down_t; Q=Q, rep = false)
+            J += UnitaryNormLoss(name, traj, down_t; Q=Qd, rep = false)
         end
     end
+
+    Q_reg = Qd
+    if(!isnothing(times) || !isnothing(down_times))
+        Q_reg = Qd/100
+    end 
+    for name ∈ state_adjoint_names
+        J += UnitaryNormLoss(name, traj, 1:T; Q=Q_reg, rep = false) ###small regularization 
+    end
+    
 
     # Optional Piccolo constraints and objectives
     apply_piccolo_options!(

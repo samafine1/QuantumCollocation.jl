@@ -9,6 +9,7 @@ using LinearAlgebra
 using NamedTrajectories
 using DirectTrajOpt
 using PiccoloQuantumObjects
+using SparseArrays
 
 const ⊗ = kron
 
@@ -54,8 +55,22 @@ function AdjointUnitaryIntegrator(
 
     Gai = (i,a_) -> I(sys.levels) ⊗ sys.Gₐ[i](a_)
 
-    Ĝ = a_ ->  vcat(reduce(vcat,[[zeros(size(G(a_))[1],(i-1) * size(G(a_))[1]) G(a_) zeros(size(G(a_))[1],(n_sys-i) * size(G(a_))[1]) Gai(i,a_)] for i in 1:length(sys.Gₐ)]),[zeros(size(G(a_))[1],size(G(a_))[1]*n_sys) G(a_)])
-
+    function Ĝ(a_)
+        G_eval = G(a_)
+        dim = size(G_eval)[1]    
+        Gx_index, Gy_index, G_val = findnz(G_eval)
+        G_full = spzeros((n_sys+1).*size(G_eval))
+    
+        for i ∈ 0:n_sys
+            G_full +=    sparse((i*dim) .+ Gx_index, (i*dim) .+ Gy_index, G_val, size(G_full)...)
+            if(i<n_sys)
+                Ga_x_index, Ga_y_index, Ga_val = findnz(Gai(i+1,a_))
+                G_full +=    sparse((i*dim) .+ Ga_x_index, (n_sys*dim) .+ Ga_y_index, Ga_val, size(G_full)...)
+            end
+        end 
+        return G_full
+    end
+    
     return AdjointBilinearIntegrator(Ĝ, traj, Ũ⃗, Ũ⃗ₐ, a)
 end
 

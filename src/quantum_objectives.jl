@@ -105,9 +105,9 @@ function UnitaryNormLoss(
     rep = true
 )
     if(rep)
-        ℓ = Ũ⃗-> 1/(Ũ⃗'Ũ⃗) * length(Ũ⃗)
+        ℓ = Ũ⃗-> 1/(Ũ⃗'Ũ⃗) * (length(Ũ⃗)/2)
     else
-        ℓ = Ũ⃗-> (Ũ⃗'Ũ⃗) / length(Ũ⃗)
+        ℓ = Ũ⃗-> (Ũ⃗'Ũ⃗) / (length(Ũ⃗)/2)
     end
     return KnotPointObjective(
         ℓ,
