@@ -56,7 +56,7 @@ function VariationalKetIntegrator(
     ψ̃_variations::AbstractVector{Symbol},
     a::Symbol
 ) 
-    var_ψ̃ = hcat(ψ̃, ψ̃_variations...)
+    var_ψ̃ = vcat(ψ̃, ψ̃_variations...)
     G = a -> Isomorphisms.var_G(sys.G(a), [G(a) for G in sys.G_vars])
     return BilinearIntegrator(G, traj, var_ψ̃, a)
 end
@@ -68,7 +68,7 @@ function VariationalUnitaryIntegrator(
     Ũ⃗_variations::AbstractVector{Symbol},
     a::Symbol
 ) 
-    var_Ũ⃗ = hcat(Ũ⃗, Ũ⃗_variations...)
+    var_Ũ⃗ = vcat(Ũ⃗, Ũ⃗_variations...)
     Ĝ = a -> Isomorphisms.var_G(
         I(sys.levels) ⊗ sys.G(a), [I(sys.levels) ⊗ G(a) for G in sys.G_vars]
     )

@@ -128,7 +128,7 @@ function QuantumStateSmoothPulseProblem(
     J += QuadraticRegularizer(control_names[3], traj, R_dda)
 
     for name ∈ state_names
-        J += KetInfidelityLoss(name, traj; Q=Q)
+        J += KetInfidelityObjective(name, traj; Q=Q)
     end
 
     # Optional Piccolo constraints and objectives

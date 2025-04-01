@@ -88,7 +88,7 @@ function QuantumStateSamplingProblem(
     
     for (weight, names) in zip(system_weights, state_names)
         for name in names
-            J += KetInfidelityLoss(name, traj, Q=weight * Q)
+            J += KetInfidelityObjective(name, traj, Q=weight * Q)
         end
     end
 

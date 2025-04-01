@@ -1,12 +1,9 @@
 module QuantumObjectives
 
-export ket_infidelity_loss
-export unitary_infidelity_loss
-export density_matrix_pure_state_infidelity_loss
-export KetInfidelityLoss
-export UnitaryInfidelityLoss
-export DensityMatrixPureStateInfidelityLoss
-export UnitaryNormLoss
+export KetInfidelityObjective
+export UnitaryInfidelityObjective
+export DensityMatrixPureStateInfidelityObjective
+export UnitarySensitivityObjective
 
 using LinearAlgebra
 using NamedTrajectories
@@ -17,23 +14,22 @@ using DirectTrajOpt
 #                        Kets
 # ---------------------------------------------------------
 
-function ket_infidelity_loss(
+function ket_fidelity_loss(
     ψ̃::AbstractVector, 
     ψ_goal::AbstractVector{<:Complex{Float64}}
 )
     ψ = iso_to_ket(ψ̃)
-    ℱ = abs2(ψ_goal' * ψ)
-    return abs(1 - ℱ) 
+    return abs2(ψ_goal' * ψ)
 end 
 
-function KetInfidelityLoss(
+function KetInfidelityObjective(
     ψ̃_name::Symbol,
     traj::NamedTrajectory;
     Q=100.0
 )
     ψ_goal = iso_to_ket(traj.goal[ψ̃_name])
-    ℓ = ψ̃ -> ket_infidelity_loss(ψ̃, ψ_goal)
-    return TerminalLoss(ℓ, ψ̃_name, traj; Q=Q)
+    ℓ = ψ̃ -> abs(1 - ket_fidelity_loss(ψ̃, ψ_goal))
+    return TerminalObjective(ℓ, ψ̃_name, traj; Q=Q)
 end
 
 
@@ -41,36 +37,34 @@ end
 #                        Unitaries
 # ---------------------------------------------------------
 
-function unitary_infidelity_loss(
-    Ũ⃗::AbstractVector,
+function unitary_fidelity_loss(
+    Ũ⃗::AbstractVector{<:Real},
     U_goal::AbstractMatrix{<:Complex{Float64}}
 )
     U = iso_vec_to_operator(Ũ⃗)
     n = size(U, 1)
-    ℱ = abs2(tr(U_goal' * U)) / n^2
-    return abs(1 - ℱ) 
+    return abs2(tr(U_goal' * U)) / n^2
 end
 
-function unitary_infidelity_loss(
-    Ũ⃗::AbstractVector,
+function unitary_fidelity_loss(
+    Ũ⃗::AbstractVector{<:Real},
     op::EmbeddedOperator
 )
     U_goal = unembed(op)
     U = iso_vec_to_operator(Ũ⃗)[op.subspace, op.subspace]
     n = length(op.subspace)
     M = U_goal'U
-    ℱ = 1 / (n * (n + 1)) * (abs(tr(M'M)) + abs2(tr(M))) 
-    return abs(1 - ℱ)
+    return 1 / (n * (n + 1)) * (abs(tr(M'M)) + abs2(tr(M))) 
 end
 
-function UnitaryInfidelityLoss(
+function UnitaryInfidelityObjective(
     U_goal::AbstractPiccoloOperator,
     Ũ⃗_name::Symbol,
     traj::NamedTrajectory;
     Q=100.0
 )
-    ℓ = Ũ⃗ -> unitary_infidelity_loss(Ũ⃗, U_goal)
-    return TerminalLoss(ℓ, Ũ⃗_name, traj; Q=Q)
+    ℓ = Ũ⃗ -> abs(1 - unitary_fidelity_loss(Ũ⃗, U_goal))
+    return TerminalObjective(ℓ, Ũ⃗_name, traj; Q=Q)
 end
 
 # ---------------------------------------------------------
@@ -86,29 +80,41 @@ function density_matrix_pure_state_infidelity_loss(
     return abs(1 - ℱ)
 end
 
-function DensityMatrixPureStateInfidelityLoss(
+function DensityMatrixPureStateInfidelityObjective(
     ρ̃_name::Symbol,
     ψ_goal::AbstractVector{<:Complex{Float64}},
     traj::NamedTrajectory;
     Q=100.0
 )
     ℓ = ρ̃ -> density_matrix_pure_state_infidelity_loss(ρ̃, ψ_goal)
-    return TerminalLoss(ℓ, ρ̃_name, traj; Q=Q)
+    return TerminalObjective(ℓ, ρ̃_name, traj; Q=Q)
 end
 
+# ---------------------------------------------------------
+#                        Sensitivity
+# ---------------------------------------------------------
 
-function UnitaryNormLoss(
+function unitary_fidelity_loss(
+    Ũ⃗::AbstractVector{<:Real}
+)
+    U = iso_vec_to_operator(Ũ⃗)
+    n = size(U, 1)
+    return abs2(tr(U' * U)) / n^2
+end
+
+function UnitarySensitivityObjective(
     name::Symbol,
     traj::NamedTrajectory,
     times::AbstractVector;
     Q::Float64=100.0,
-    rep = true
+    robust=false
 )
-    if(rep)
-        ℓ = Ũ⃗-> 1/(Ũ⃗'Ũ⃗) * (length(Ũ⃗)/2)
+    if robust
+        ℓ = Ũ⃗ -> unitary_fidelity_loss(Ũ⃗)
     else
-        ℓ = Ũ⃗-> (Ũ⃗'Ũ⃗) / (length(Ũ⃗)/2)
+        ℓ = Ũ⃗ -> 1 / unitary_fidelity_loss(Ũ⃗)
     end
+
     return KnotPointObjective(
         ℓ,
         name,
