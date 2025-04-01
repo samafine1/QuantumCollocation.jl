@@ -3,7 +3,7 @@ module QuantumIntegrators
 export KetIntegrator
 export UnitaryIntegrator
 export DensityMatrixIntegrator
-export AdjointUnitaryIntegrator
+export VariationalUnitaryIntegrator
 
 using LinearAlgebra
 using NamedTrajectories
@@ -12,6 +12,10 @@ using PiccoloQuantumObjects
 using SparseArrays
 
 const ⊗ = kron
+
+# ----------------------------------------------------------------------------- #
+# Default Integrators
+# ----------------------------------------------------------------------------- #
 
 function KetIntegrator(
     sys::QuantumSystem,
@@ -41,37 +45,34 @@ function DensityMatrixIntegrator(
     return BilinearIntegrator(sys.𝒢, traj, ρ̃, a)
 end
 
+# ----------------------------------------------------------------------------- #
+# Variational Integrators
+# ----------------------------------------------------------------------------- #
 
-function AdjointUnitaryIntegrator(
-    sys::ParameterizedQuantumSystem,
+function VariationalKetIntegrator(
+    sys::VariationalQuantumSystem,
     traj::NamedTrajectory, 
-    Ũ⃗::Symbol, 
-    Ũ⃗ₐ::Vector{Symbol},
+    ψ̃::Symbol, 
+    ψ̃_variations::AbstractVector{Symbol},
     a::Symbol
 ) 
-    n_sys = length(sys.Gₐ)
-    
-    G = a_ -> I(sys.levels) ⊗ sys.G(a_)
+    var_ψ̃ = hcat(ψ̃, ψ̃_variations...)
+    G = a -> Isomorphisms.var_G(sys.G(a), [G(a) for G in sys.G_vars])
+    return BilinearIntegrator(G, traj, var_ψ̃, a)
+end
 
-    Gai = (i,a_) -> I(sys.levels) ⊗ sys.Gₐ[i](a_)
-
-    function Ĝ(a_)
-        G_eval = G(a_)
-        dim = size(G_eval)[1]    
-        Gx_index, Gy_index, G_val = findnz(G_eval)
-        G_full = spzeros((n_sys+1).*size(G_eval))
-    
-        for i ∈ 0:n_sys
-            G_full +=    sparse((i*dim) .+ Gx_index, (i*dim) .+ Gy_index, G_val, size(G_full)...)
-            if(i<n_sys)
-                Ga_x_index, Ga_y_index, Ga_val = findnz(Gai(i+1,a_))
-                G_full +=    sparse((i*dim) .+ Ga_x_index, (n_sys*dim) .+ Ga_y_index, Ga_val, size(G_full)...)
-            end
-        end 
-        return G_full
-    end
-    
-    return AdjointBilinearIntegrator(Ĝ, traj, Ũ⃗, Ũ⃗ₐ, a)
+function VariationalUnitaryIntegrator(
+    sys::VariationalQuantumSystem,
+    traj::NamedTrajectory, 
+    Ũ⃗::Symbol, 
+    Ũ⃗_variations::AbstractVector{Symbol},
+    a::Symbol
+) 
+    var_Ũ⃗ = hcat(Ũ⃗, Ũ⃗_variations...)
+    Ĝ = a -> Isomorphisms.var_G(
+        I(sys.levels) ⊗ sys.G(a), [I(sys.levels) ⊗ G(a) for G in sys.G_vars]
+    )
+    return BilinearIntegrator(Ĝ, traj, var_Ũ⃗, a)
 end
 
 
