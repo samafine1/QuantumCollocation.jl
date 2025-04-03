@@ -105,21 +105,17 @@ end
 function UnitarySensitivityObjective(
     name::Symbol,
     traj::NamedTrajectory,
-    times::AbstractVector;
-    Q::Float64=100.0,
-    robust=false
+    times::AbstractVector{Int};
+    Qs::AbstractVector{<:Float64}=fill(1.0, length(times)),
+    scale::Float64=1.0,
 )
-    if robust
-        ℓ = Ũ⃗ -> unitary_fidelity_loss(Ũ⃗)
-    else
-        ℓ = Ũ⃗ -> 1 / unitary_fidelity_loss(Ũ⃗)
-    end
+    ℓ = Ũ⃗ -> scale^4 * unitary_fidelity_loss(Ũ⃗)
 
     return KnotPointObjective(
         ℓ,
         name,
         traj;
-        Qs=Q * ones(length(times)),
+        Qs=Qs,
         times=times
     )
 end

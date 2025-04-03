@@ -54,10 +54,11 @@ function VariationalKetIntegrator(
     traj::NamedTrajectory, 
     ψ̃::Symbol, 
     ψ̃_variations::AbstractVector{Symbol},
-    a::Symbol
+    a::Symbol;
+    scale::Float64=1.0,
 ) 
     var_ψ̃ = vcat(ψ̃, ψ̃_variations...)
-    G = a -> Isomorphisms.var_G(sys.G(a), [G(a) for G in sys.G_vars])
+    G = a -> Isomorphisms.var_G(sys.G(a), [G(a) / scale for G in sys.G_vars])
     return BilinearIntegrator(G, traj, var_ψ̃, a)
 end
 
@@ -66,11 +67,12 @@ function VariationalUnitaryIntegrator(
     traj::NamedTrajectory, 
     Ũ⃗::Symbol, 
     Ũ⃗_variations::AbstractVector{Symbol},
-    a::Symbol
-) 
+    a::Symbol;
+    scale::Float64=1.0,
+)
     var_Ũ⃗ = vcat(Ũ⃗, Ũ⃗_variations...)
     Ĝ = a -> Isomorphisms.var_G(
-        I(sys.levels) ⊗ sys.G(a), [I(sys.levels) ⊗ G(a) for G in sys.G_vars]
+        I(sys.levels) ⊗ sys.G(a), [I(sys.levels) ⊗ G(a) / scale for G in sys.G_vars]
     )
     return BilinearIntegrator(Ĝ, traj, var_Ũ⃗, a)
 end
