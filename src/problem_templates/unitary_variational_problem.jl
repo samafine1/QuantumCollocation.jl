@@ -64,7 +64,7 @@ function UnitaryVariationalProblem(
     variational_integrator=VariationalUnitaryIntegrator,
     variational_scale::Float64=1.0,
     state_name::Symbol = :Ũ⃗,
-    variational_state_name::Symbol = :Ũ⃗ₐ,
+    variational_state_name::Symbol = :Ũ⃗ᵥ,
     control_name::Symbol = :a,
     timestep_name::Symbol = :Δt,
     init_trajectory::Union{NamedTrajectory, Nothing}=nothing,
