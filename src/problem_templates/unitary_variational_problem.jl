@@ -125,9 +125,10 @@ function UnitaryVariationalProblem(
         Symbol(string(variational_state_name) * "$(i)") for i in eachindex(system.G_vars)
     ]
 
-    for (name, var) in zip(variational_state_names, Ũ⃗_vars)
-        add_component!(traj, name, var / variational_scale; type=:state)
-        traj.initial = merge(traj.initial, (name => var[:, 1] / variational_scale, ))
+    # TODO: variational rollout should always return vars as vector of matrices
+    for (name, Ũ⃗_v) in zip(variational_state_names, isa(Ũ⃗_vars, AbstractVector) ? Ũ⃗_vars : [Ũ⃗_vars])
+        add_component!(traj, name, Ũ⃗_v / variational_scale; type=:state)
+        traj.initial = merge(traj.initial, (name => Ũ⃗_v[:, 1] / variational_scale, ))
     end
 
     control_names = [
@@ -170,4 +171,38 @@ function UnitaryVariationalProblem(
         integrators;
         constraints=constraints
     )
+end
+
+# *************************************************************************** #
+
+@testitem "Sensitive and robust" begin
+    using LinearAlgebra
+    using PiccoloQuantumObjects
+
+    system = QuantumSystem([PAULIS.X, PAULIS.Y])
+    varsys = VariationalQuantumSystem([PAULIS.X, PAULIS.Y], [PAULIS.X] )
+    T = 50
+    Δt = 0.2
+
+    sense_scale = 8.0
+    sense_prob = UnitaryVariationalProblem(
+        varsys, GATES.X, T, Δt, 
+        variational_scale=sense_scale, 
+        sensitive_times=[[T]],
+        piccolo_options=PiccoloOptions(verbose=false)
+    )
+    solve!(sense_prob, max_iter=20, print_level=1, verbose=false)
+
+    rob_scale = 1 / 8.0
+    rob_prob = UnitaryVariationalProblem(
+        varsys, GATES.X, T, Δt, 
+        variational_scale=rob_scale, 
+        robust_times=[[T]],
+        piccolo_options=PiccoloOptions(verbose=false)
+    )
+    solve!(rob_prob, max_iter=20, print_level=1, verbose=false)
+
+    sense_n = norm(sense_scale * sense_prob.trajectory.Ũ⃗ᵥ1)
+    rob_n = norm(rob_scale * rob_prob.trajectory.Ũ⃗ᵥ1)
+    @assert sense_n > rob_n
 end
