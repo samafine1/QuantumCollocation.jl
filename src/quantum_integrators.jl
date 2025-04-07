@@ -71,9 +71,12 @@ function VariationalUnitaryIntegrator(
     scale::Float64=1.0,
 )
     var_Ũ⃗ = vcat(Ũ⃗, Ũ⃗_variations...)
-    Ĝ = a -> Isomorphisms.var_G(
-        I(sys.levels) ⊗ sys.G(a), [I(sys.levels) ⊗ G(a) / scale for G in sys.G_vars]
-    )
+
+    function Ĝ(a)
+        G0 = sys.G(a)
+        Gs = typeof(G0)[I(sys.levels) ⊗ G(a) / scale for G in sys.G_vars]
+        return Isomorphisms.var_G(I(sys.levels) ⊗ G0, Gs)
+    end
     return BilinearIntegrator(Ĝ, traj, var_Ũ⃗, a)
 end
 

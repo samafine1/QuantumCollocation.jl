@@ -125,8 +125,7 @@ function UnitaryVariationalProblem(
         Symbol(string(variational_state_name) * "$(i)") for i in eachindex(system.G_vars)
     ]
 
-    # TODO: variational rollout should always return vars as vector of matrices
-    for (name, Ũ⃗_v) in zip(variational_state_names, isa(Ũ⃗_vars, AbstractVector) ? Ũ⃗_vars : [Ũ⃗_vars])
+    for (name, Ũ⃗_v) in zip(variational_state_names, Ũ⃗_vars)
         add_component!(traj, name, Ũ⃗_v / variational_scale; type=:state)
         traj.initial = merge(traj.initial, (name => Ũ⃗_v[:, 1] / variational_scale, ))
     end
