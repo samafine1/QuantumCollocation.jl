@@ -24,6 +24,7 @@ Constructs a unitary variational problem for optimizing quantum control trajecto
 - `unitary_integrator`: The integrator used for unitary evolution (default: `VariationalUnitaryIntegrator`).
 - `state_name::Symbol`: The name of the state variable in the trajectory (default: `:Ũ⃗`).
 - `variational_state_name::Symbol`: The name of the variational state variable (default: `:Ũ⃗ₐ`).
+- `variational_scales::AbstractVector`: Scaling factors for the variational state variables (default: `1.0`).
 - `control_name::Symbol`: The name of the control variable (default: `:a`).
 - `timestep_name::Symbol`: The name of the timestep variable (default: `:Δt`).
 - `init_trajectory::Union{NamedTrajectory, Nothing}`: An optional initial trajectory to start optimization.
@@ -195,7 +196,7 @@ end
     sense_scale = 8.0
     sense_prob = UnitaryVariationalProblem(
         varsys, GATES.X, T, Δt, 
-        variational_scale=sense_scale, 
+        variational_scales=[sense_scale], 
         sensitive_times=[[T]],
         piccolo_options=PiccoloOptions(verbose=false)
     )
@@ -204,7 +205,7 @@ end
     rob_scale = 1 / 8.0
     rob_prob = UnitaryVariationalProblem(
         varsys, GATES.X, T, Δt, 
-        variational_scale=rob_scale, 
+        variational_scales=[rob_scale], 
         robust_times=[[T]],
         piccolo_options=PiccoloOptions(verbose=false)
     )
