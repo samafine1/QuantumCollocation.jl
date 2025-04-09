@@ -62,7 +62,7 @@ function UnitaryVariationalProblem(
     robust_times::AbstractVector{<:AbstractVector{Int}}=[Int[] for s ∈ system.G_vars],
     sensitive_times::AbstractVector{<:AbstractVector{Int}}=[Int[] for s ∈ system.G_vars],
     variational_integrator=VariationalUnitaryIntegrator,
-    variational_scale::Float64=1.0,
+    variational_scales::AbstractVector{<:Float64}=fill(1.0, length(system.G_vars)),
     state_name::Symbol = :Ũ⃗,
     variational_state_name::Symbol = :Ũ⃗ᵥ,
     control_name::Symbol = :a,
@@ -125,9 +125,9 @@ function UnitaryVariationalProblem(
         Symbol(string(variational_state_name) * "$(i)") for i in eachindex(system.G_vars)
     ]
 
-    for (name, Ũ⃗_v) in zip(variational_state_names, Ũ⃗_vars)
-        add_component!(traj, name, Ũ⃗_v / variational_scale; type=:state)
-        traj.initial = merge(traj.initial, (name => Ũ⃗_v[:, 1] / variational_scale, ))
+    for (name, scale, Ũ⃗_v) in zip(variational_state_names, variational_scales, Ũ⃗_vars)
+        add_component!(traj, name, Ũ⃗_v / scale; type=:state)
+        traj.initial = merge(traj.initial, (name => Ũ⃗_v[:, 1] / scale,))
     end
 
     control_names = [
@@ -142,14 +142,20 @@ function UnitaryVariationalProblem(
     J += QuadraticRegularizer(control_names[3], traj, R_dda)
 
     # sensitivity
-    for (name, s, r) ∈ zip(variational_state_names, sensitive_times, robust_times)
+    for (name, scale, s, r) ∈ zip(
+        variational_state_names, 
+        variational_scales, 
+        sensitive_times, 
+        robust_times
+    )
         @assert isdisjoint(s, r)
         J += UnitarySensitivityObjective(
             name, 
             traj, 
             [s; r]; 
             Qs=[fill(-Q_s, length(s)); fill(Q_r, length(r))], 
-            scale=variational_scale)
+            scale=scale
+        )
     end
     
     # Optional Piccolo constraints and objectives
@@ -159,7 +165,10 @@ function UnitaryVariationalProblem(
     )
 
     integrators = [
-        variational_integrator(system, traj, state_name, variational_state_names, control_name, scale=variational_scale),
+        variational_integrator(
+            system, traj, state_name, variational_state_names, control_name, 
+            scales=variational_scales
+        ),
         DerivativeIntegrator(traj, control_name, control_names[2]),
         DerivativeIntegrator(traj, control_names[2], control_names[3]),
     ]

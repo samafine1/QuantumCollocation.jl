@@ -68,13 +68,13 @@ function VariationalUnitaryIntegrator(
     Ũ⃗::Symbol, 
     Ũ⃗_variations::AbstractVector{Symbol},
     a::Symbol;
-    scale::Float64=1.0,
+    scales::AbstractVector{<:Float64}=fill(1.0, length(sys.G_vars)),
 )
     var_Ũ⃗ = vcat(Ũ⃗, Ũ⃗_variations...)
 
     function Ĝ(a)
         G0 = sys.G(a)
-        Gs = typeof(G0)[I(sys.levels) ⊗ G(a) / scale for G in sys.G_vars]
+        Gs = typeof(G0)[I(sys.levels) ⊗ G(a) / scale for (scale, G) in zip(scales, sys.G_vars)]
         return Isomorphisms.var_G(I(sys.levels) ⊗ G0, Gs)
     end
     return BilinearIntegrator(Ĝ, traj, var_Ũ⃗, a)
