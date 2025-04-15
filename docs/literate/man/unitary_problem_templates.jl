@@ -94,3 +94,25 @@ println(sampling_prob.trajectory.state_names)
 # _the `solve!` proceeds as in the [Quantum State Sampling Problem](#Quantum-State-Sampling-Problem)]_
 
 # -----
+
+#=
+## Unitary Variational Problem
+
+```@docs; canonical = false
+UnitaryVariationalProblem
+```
+
+The `UnitaryVariationalProblem` uses a `VariationalQuantumSystem` to find a control that is
+sensitive or robust to terms in the Hamiltonian. See the documentation for the 
+`VariationalQuantumSystem` in [`PiccoloQuantumObjects.jl`](https://github.com/harmoniqs/PiccoloQuantumObjects.jl)
+for more details.
+=#
+
+# _create a variational system, with a variational Hamiltonian, `PAULIS.X`_
+H_var = PAULIS.X
+varsys = VariationalQuantumSystem([PAULIS.X, PAULIS.Y], [H_var]);
+
+# _create a variational problem that is robust to `PAULIS.X` at the end_
+robprob = UnitaryVariationalProblem(varsys, U_goal, T, Δt, robust_times=[[T]]);
+
+# -----

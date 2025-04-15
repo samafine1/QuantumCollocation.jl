@@ -55,7 +55,7 @@ while a *UnitaryMinimumTimeProblem* minimizes time and constrains fidelity,
 
 -----
 
-In each case, the dynamics between *knot points* $(U_t, a_t)$ and $(U_{t+1}, a_{t+1})$ are enforced as constraints on the states, which are free variables in the solver; this optimization framework is called *direct collocation*. 
+In each case, the dynamics between *knot points* $(U_t, a_t)$ and $(U_{t+1}, a_{t+1})$ are enforced as constraints on the states, which are free variables in the solver; this optimization framework is called *direct trajectory optimization*. 
 
 -----
 
