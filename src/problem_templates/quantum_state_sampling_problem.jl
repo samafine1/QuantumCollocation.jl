@@ -73,7 +73,7 @@ function QuantumStateSamplingProblem(
             )
         end
 
-        traj = merge(trajs, merge_names=(; a=1, da=1, dda=1, Δt=1),free_time=true)
+        traj = merge(trajs, merge_names=(; a=1, da=1, dda=1, Δt=1), free_time=true)
     end
 
     control_names = [
@@ -88,7 +88,7 @@ function QuantumStateSamplingProblem(
     
     for (weight, names) in zip(system_weights, state_names)
         for name in names
-            J += KetInfidelityLoss(name, traj, Q=weight * Q)
+            J += KetInfidelityObjective(name, traj, Q=weight * Q)
         end
     end
 

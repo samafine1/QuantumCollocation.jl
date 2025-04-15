@@ -5,24 +5,13 @@ using Literate
 push!(LOAD_PATH, joinpath(@__DIR__, "..", "src"))
 
 @info "Building Documenter site for QuantumCollocation.jl"
-open(joinpath(@__DIR__, "src", "index.md"), write = true) do io
-    for line in eachline(joinpath(@__DIR__, "..", "README.md"))
-        if occursin("<!--", line) && occursin("-->", line)
-            comment_content = match(r"<!--(.*)-->", line).captures[1]
-            write(io, comment_content * "\n")
-        else
-            write(io, line * "\n")
-        end
-    end
-end
 
-# TODO: Callbacks are currently broken
 pages = [
     "Home" => "index.md",
-    "Manual" => [
-        "Problem Templates" => "generated/man/problem_templates.md",
+    "Library" => [
+        "Ket Problem Templates" => "generated/man/ket_problem_templates.md",
+        "Unitary Problem Templates" => "generated/man/unitary_problem_templates.md",
     ],
-    "Library" => "lib.md",
 ]
 
 format = Documenter.HTML(;

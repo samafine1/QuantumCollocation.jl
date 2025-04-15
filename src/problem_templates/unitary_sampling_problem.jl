@@ -120,7 +120,7 @@ function UnitarySamplingProblem(
     J += QuadraticRegularizer(control_names[3], traj, R_dda)
 
     for (weight, op, name) in zip(system_weights, operators, state_names)
-        J += UnitaryInfidelityLoss(op, name, traj; Q=weight * Q)
+        J += UnitaryInfidelityObjective(op, name, traj; Q=weight * Q)
     end
 
     # Optional Piccolo constraints and objectives

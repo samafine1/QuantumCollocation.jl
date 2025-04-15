@@ -1,60 +1,3 @@
-```@raw html
-<div align="center">
-  <a href="https://github.com/harmoniqs/Piccolo.jl">
-    <img src="assets/logo.svg" alt="Piccolo.jl" width="25%"/>
-  </a>
-</div>
-
-<div align="center">
-  <table>
-    <tr>
-      <td align="center">
-        <b>Documentation</b>
-        <br>
-        <a href="https://harmoniqs.github.io/QuantumCollocation.jl/stable/">
-          <img src="https://img.shields.io/badge/docs-stable-blue.svg" alt="Stable"/>
-        </a>
-        <a href="https://harmoniqs.github.io/QuantumCollocation.jl/dev/">
-          <img src="https://img.shields.io/badge/docs-dev-blue.svg" alt="Dev"/>
-        </a>
-        <a href="https://arxiv.org/abs/2305.03261">
-          <img src="https://img.shields.io/badge/arXiv-2305.03261-b31b1b.svg" alt="arXiv"/>
-        </a>
-      </td>
-      <td align="center">
-        <b>Build Status</b>
-        <br>
-        <a href="https://github.com/harmoniqs/QuantumCollocation.jl/actions/workflows/CI.yml?query=branch%3Amain">
-          <img src="https://github.com/harmoniqs/QuantumCollocation.jl/actions/workflows/CI.yml/badge.svg?branch=main" alt="Build Status"/>
-        </a>
-        <a href="https://codecov.io/gh/harmoniqs/QuantumCollocation.jl">
-          <img src="https://codecov.io/gh/harmoniqs/QuantumCollocation.jl/branch/main/graph/badge.svg" alt="Coverage"/>
-        </a>
-      </td>
-      <td align="center">
-        <b>License</b>
-        <br>
-        <a href="https://opensource.org/licenses/MIT">
-          <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT License"/>
-        </a>
-      </td>
-      <td align="center">
-        <b>Support</b>
-        <br>
-        <a href="https://unitary.fund">
-          <img src="https://img.shields.io/badge/Supported%20By-Unitary%20Fund-FFFF00.svg" alt="Unitary Fund"/>
-        </a>
-      </td>
-    </tr>
-  </table>
-</div>
-
-<div align="center">
-  <i> Quickly set up and solve problem templates for quantum optimal control</i>
-  <br>
-</div>
-```
-
 # QuantumCollocation.jl
 
 **QuantumCollocation.jl** sets up and solves *quantum control problems* as nonlinear programs (NLPs). In this context, a generic quantum control problem looks like
@@ -67,7 +10,29 @@
 ```
 where $\mathbf{Z}$ is a trajectory  containing states and controls, from [NamedTrajectories.jl](https://github.com/harmoniqs/NamedTrajectories.jl).
 
-### Problem Templates 
+-----
+
+We provide a number of **problem templates** for making it simple and easy to set up and solve 
+certain types of quantum optimal control problems. These templates all construct a 
+`DirectTrajOptProblem` object from [DirectTrajOpt.jl](https://github.com/harmoniqs/DirectTrajOpt.jl), which stores all the parts of the optimal control problem.
+
+-----
+
+### Get started
+
+The problem templates are broken down by the state variable of the problem being solved.
+
+Ket Problem Templates:
+- [Quantum State Smooth Pulse Problem](@ref)
+- [Quantum State Minimum Time Problem](@ref)
+- [Quantum State Sampling Problem](@ref)
+
+Unitary Problem Templates:
+- [Unitary Smooth Pulse Problem](@ref)
+- [Unitary Minimum Time Problem](@ref)
+- [Unitary Sampling Problem](@ref)
+
+### Background
 
 *Problem Templates* are reusable design patterns for setting up and solving common quantum control problems. 
 
@@ -88,29 +53,10 @@ while a *UnitaryMinimumTimeProblem* minimizes time and constrains fidelity,
     \end{aligned}
 ```
 
-In each case, the dynamics between *knot points* $(U_t, a_t)$ and $(U_{t+1}, a_{t+1})$ are enforced as constraints on the states, which are free variables in the solver; this optimization framework is called *direct collocation*. For details of our implementation please see our award-winning IEEE QCE 2023 paper, [Direct Collocation for Quantum Optimal Control](https://arxiv.org/abs/2305.03261). If you use QuantumCollocation.jl in your work, please cite :raised_hands:!
+-----
+
+In each case, the dynamics between *knot points* $(U_t, a_t)$ and $(U_{t+1}, a_{t+1})$ are enforced as constraints on the states, which are free variables in the solver; this optimization framework is called *direct trajectory optimization*. 
+
+-----
 
 Problem templates give the user the ability to add other constraints and objective functions to this problem and solve it efficiently using [Ipopt.jl](https://github.com/jump-dev/Ipopt.jl) and [MathOptInterface.jl](https://github.com/jump-dev/MathOptInterface.jl) under the hood.
-
-## Installation
-
-This package is registered! To install, enter the Julia REPL, type `]` to enter pkg mode, and then run:
-```julia
-pkg> add QuantumCollocation
-```
-
-## Example
-
-### Single Qubit Hadamard Gate
-```Julia
-using QuantumCollocation
-
-T = 50
-Δt = 0.2
-system = QuantumSystem([PAULIS[:X], PAULIS[:Y]])
-U_goal = GATES.H
-
-# Hadamard Gate
-prob = UnitarySmoothPulseProblem(system, U_goal, T, Δt)
-solve!(prob, max_iter=100)
-```

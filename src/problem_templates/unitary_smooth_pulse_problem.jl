@@ -122,7 +122,7 @@ function UnitarySmoothPulseProblem(
     end
 
     # Objective
-    J = UnitaryInfidelityLoss(goal, state_name, traj; Q=Q)
+    J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
 
     control_names = [
         name for name ∈ traj.names
