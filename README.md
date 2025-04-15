@@ -67,30 +67,7 @@
 ```
 where $\mathbf{Z}$ is a trajectory  containing states and controls, from [NamedTrajectories.jl](https://github.com/harmoniqs/NamedTrajectories.jl).
 
-### Problem Templates 
-
-*Problem Templates* are reusable design patterns for setting up and solving common quantum control problems. 
-
-For example, a *UnitarySmoothPulseProblem* is tasked with generating a *pulse* sequence $a_{1:T-1}$ in orderd to minimize infidelity, subject to constraints from the Schroedinger equation,
-```math
-    \begin{aligned}
-        \arg \min_{\mathbf{Z}}\quad & |1 - \mathcal{F}(U_T, U_\text{goal})|  \\
-        \nonumber \text{s.t.}
-        \qquad & U_{t+1} = \exp\{- i H(a_t) \Delta t_t \} U_t, \quad \forall\, t \\
-    \end{aligned}
-```
-while a *UnitaryMinimumTimeProblem* minimizes time and constrains fidelity,
-```math
-    \begin{aligned}
-        \arg \min_{\mathbf{Z}}\quad & \sum_{t=1}^T \Delta t_t \\
-        \qquad & U_{t+1} = \exp\{- i H(a_t) \Delta t_t \} U_t, \quad \forall\, t \\
-        \nonumber & \mathcal{F}(U_T, U_\text{goal}) \ge 0.9999
-    \end{aligned}
-```
-
-In each case, the dynamics between *knot points* $(U_t, a_t)$ and $(U_{t+1}, a_{t+1})$ are enforced as constraints on the states, which are free variables in the solver; this optimization framework is called *direct collocation*. For details of our implementation please see our award-winning IEEE QCE 2023 paper, [Direct Collocation for Quantum Optimal Control](https://arxiv.org/abs/2305.03261). If you use QuantumCollocation.jl in your work, please cite :raised_hands:!
-
-Problem templates give the user the ability to add other constraints and objective functions to this problem and solve it efficiently using [Ipopt.jl](https://github.com/jump-dev/Ipopt.jl) and [MathOptInterface.jl](https://github.com/jump-dev/MathOptInterface.jl) under the hood.
+For details of our implementation please see our IEEE QCE 2023 paper, [Direct Collocation for Quantum Optimal Control](https://arxiv.org/abs/2305.03261). If you use QuantumCollocation.jl in your work, please cite :raised_hands:!
 
 ## Installation
 

@@ -1,7 +1,5 @@
 module ProblemTemplates
 
-export apply_piccolo_options!
-
 using ..TrajectoryInitialization
 using ..QuantumObjectives
 using ..QuantumConstraints
