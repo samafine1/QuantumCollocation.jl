@@ -30,9 +30,9 @@
 # Let's now set this up using some of the convenience functions available in QuantumCollocation.jl.
 
 #=
-CHANGELOG
-- add `using PiccoloQuantumObjects` to use PAULIS, GATES
-- use `kron(a, b)` instead of infix kron operator, or import infix kron operator
+### CHANGELOG
+- added `using PiccoloQuantumObjects` to use PAULIS, GATES
+- use `kron(a, b)` instead of infix kron operator, or define or import infix kron operator
 - use `PiccoloOptions(; rollout_integrator=ExponentialAction.expv)` or just `PiccoloOptions()`; `integrator` keyword replaced by `rollout_integrator` along with new type (`Symbol` replaced by `Function`) and default value
 - `unitary_rollout_fidelity` now requires `unitary_rollout_fidelity(prob.trajectory, syst)` rather than `unitary_rollout_fidelity(prob)`
 - `UnitaryMinimumTimeProblem` now requires `UnitaryMinimumTimeProblem(prob, U_goal; final_fidelity=0.99)` rather than `UnitaryMinimumTimeProblem(prob; final_fidelity=0.99)`
@@ -41,8 +41,14 @@ CHANGELOG
 =#
 
 using QuantumCollocation
+using PiccoloQuantumObjects
 using NamedTrajectories
 using LinearAlgebra
+
+using PiccoloPlots
+using CairoMakie
+
+⊗(a, b) = kron(a, b)
 
 ## Define our operators
 σx = GATES[:X]
@@ -84,14 +90,16 @@ duration = 100 # μs
 ## Define the system
 sys = QuantumSystem(H_drift, H_drives)
 
-## Look at max eigenvalue of the generator (for deciding if Pade integrators are viable)
-maximum(abs.(eigvals(Δt_max * (H_drift + sum(a_bound .* H_drives)))))
+# OLD: Look at max eigenvalue of the generator (for deciding if Pade integrators are viable)
 
-# That this value above is greater than one means that we must use an exponential integrator for these problems. We can set the kwarg `integrator=:exponential` in the [`PiccoloOptions`](@ref) struct as follows.
+# `maximum(abs.(eigvals(Δt_max * (H_drift + sum(a_bound .* H_drives)))))`
 
-piccolo_options = PiccoloOptions(
-    integrator=:exponential,
-)
+# OLD: That this value above is greater than one means that we must use an exponential integrator for these problems. We can set the kwarg `integrator=:exponential` in the [`PiccoloOptions`](@ref) struct as follows.
+
+# `piccolo_options = PiccoloOptions(integrator=:exponential)`
+
+## NEW: By default, the [`PiccoloOptions`](@ref) struct constructor sets the kwarg `rollout_integrator=ExponentialAction.expv`, so it need not be set explicitly.
+piccolo_options = PiccoloOptions()
 
 # ## SWAP gate
 
@@ -103,8 +111,7 @@ U_goal = [
     0 0 0 1
 ] |> Matrix{ComplexF64}
 
-## Set up and solve the problem
-
+## Set up the problem
 prob = UnitarySmoothPulseProblem(
     sys,
     U_goal,
@@ -118,35 +125,41 @@ prob = UnitarySmoothPulseProblem(
     Δt_max=Δt_max,
     piccolo_options=piccolo_options
 )
+fid_init = unitary_rollout_fidelity(prob.trajectory, sys)
+println(fid_init)
 
+# Solve the problem
 solve!(prob; max_iter=100)
 
 ## Let's take a look at the final fidelity
-unitary_rollout_fidelity(prob)
+fid_final = unitary_rollout_fidelity(prob.trajectory, sys)
+println(fid_final)
 
 # Looks good!
 
 # Now let's plot the pulse and the population trajectories for the first two columns of the unitary, i.e. initial state of $\ket{00}$ and $\ket{01}$. For this we provide the function [`plot_unitary_populations`](@ref).
-plot_unitary_populations(prob)
+plot_unitary_populations(prob.trajectory)
+
 
 # For fun, let's look at a minimum time pulse for this problem
-
-min_time_prob = UnitaryMinimumTimeProblem(prob; final_fidelity=.99)
-
+min_time_prob = UnitaryMinimumTimeProblem(prob, U_goal; final_fidelity=.99)
 solve!(min_time_prob; max_iter=300)
-
-unitary_rollout_fidelity(min_time_prob)
+fid_final_min_time = unitary_rollout_fidelity(min_time_prob.trajectory, sys)
+println(fid_final_min_time)
 
 # And let's plot this solution
-plot_unitary_populations(min_time_prob)
+plot_unitary_populations(min_time_prob.trajectory)
 
 # It looks like our pulse derivative bounds are holding back the solution, but regardless, the duration has decreased:
+duration = get_duration(prob.trajectory)
+min_time_duration = get_duration(min_time_prob.trajectory)
+println(duration, " - ", min_time_duration, " = ", duration - min_time_duration)
 
-get_duration(prob.trajectory) - get_duration(min_time_prob.trajectory)
 
 
+#=
 
-
+```
 # ## Mølmer–Sørensen gate
 
 # Here we will solve for a [Mølmer–Sørensen gate](https://en.wikipedia.org/wiki/M%C3%B8lmer%E2%80%93S%C3%B8rensen_gate) between two. The gate is generally described, for N qubits, by the unitary matrix
@@ -210,3 +223,7 @@ plot_unitary_populations(min_time_prob)
 # It looks like our pulse derivative bounds are holding back the solution, but regardless, the duration has decreased:
 
 get_duration(prob.trajectory) - get_duration(min_time_prob.trajectory)
+
+```
+
+=#
