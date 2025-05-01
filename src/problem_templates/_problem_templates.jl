@@ -57,10 +57,10 @@ function apply_piccolo_options!(
     end
 
     if free_time
-        if piccolo_options.verbose
-            println("\tapplying timesteps_all_equal constraint: $(traj.timestep)")
-        end
         if piccolo_options.timesteps_all_equal
+            if piccolo_options.verbose
+                println("\tapplying timesteps_all_equal constraint: $(traj.timestep)")
+            end
             push!(
                 constraints,
                 TimeStepsAllEqualConstraint(traj)
