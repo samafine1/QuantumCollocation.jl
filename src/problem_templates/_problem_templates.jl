@@ -20,6 +20,7 @@ include("unitary_smooth_pulse_problem.jl")
 include("unitary_variational_problem.jl")
 include("unitary_minimum_time_problem.jl")
 include("unitary_sampling_problem.jl")
+include("unitary_free_phase_problem.jl")
 
 include("quantum_state_smooth_pulse_problem.jl")
 include("quantum_state_minimum_time_problem.jl")
