@@ -1,6 +1,8 @@
 export UnitaryFreePhaseProblem
 
+"""
 
+"""
 function UnitaryFreePhaseProblem(
     system::AbstractQuantumSystem,
     goal::Function,
@@ -36,12 +38,25 @@ function UnitaryFreePhaseProblem(
         println("\tinitial free phases: $(phase_name) = $(initial_phases)")
     end
 
+    # Construct global phases
+    x = Symbol("cos$(phase_name)")
+    y = Symbol("sin$(phase_name)")
+    phase_names = [x, y]
+    phase_data = (; x => cos.(initial_phases), y => sin.(initial_phases))
+    trig_phases = [phase_data[x]; phase_data[y]]
+    if piccolo_options.verbose
+        println("\tusing global names: ", phase_names)
+    end
+
+    @assert goal(trig_phases) isa AbstractPiccoloOperator "expected goal([cos(θ); sin(θ)])"
+    eval_goal = goal(trig_phases)
+
     # Trajectory
     if !isnothing(init_trajectory)
         traj = init_trajectory
     else
         traj = initialize_trajectory(
-            goal(initial_phases),
+            eval_goal,
             T,
             Δt,
             system.n_drives,
@@ -49,8 +64,6 @@ function UnitaryFreePhaseProblem(
             state_name=state_name,
             control_name=control_name,
             timestep_name=timestep_name,
-            phase_name=phase_name,
-            phase_data=initial_phases,
             Δt_bounds=(Δt_min, Δt_max),
             zero_initial_and_final_derivative=piccolo_options.zero_initial_and_final_derivative,
             geodesic=piccolo_options.geodesic,
@@ -58,7 +71,8 @@ function UnitaryFreePhaseProblem(
             a_guess=a_guess,
             system=system,
             rollout_integrator=piccolo_options.rollout_integrator,
-            verbose=piccolo_options.verbose
+            verbose=piccolo_options.verbose,
+            global_data=phase_data,
         )
     end
 
@@ -66,8 +80,9 @@ function UnitaryFreePhaseProblem(
     J = UnitaryFreePhaseInfidelityObjective(
         goal, 
         state_name, 
-        phase_name,
-        traj
+        phase_names,
+        traj;
+        Q=Q
     )
 
     control_names = [
@@ -82,8 +97,15 @@ function UnitaryFreePhaseProblem(
     # Optional Piccolo constraints and objectives
     ProblemTemplates.apply_piccolo_options!(
         J, constraints, piccolo_options, traj, state_name, timestep_name;
-        state_leakage_indices=goal isa EmbeddedOperator ? get_leakage_indices(goal) : nothing
+        state_leakage_indices=eval_goal isa EmbeddedOperator ? get_leakage_indices(eval_goal) : nothing
     )
+    
+    # Phase constraint
+    function phase_norm(z)
+        x, y = z[1:length(z) ÷ 2], z[length(z) ÷ 2 + 1:end]
+        return x .^ 2 + y .^2 .- 1
+    end
+    push!(constraints, GlobalNonlinearConstraint(phase_norm, phase_names, traj))
 
     integrators = [
         unitary_integrator(system, traj, state_name, control_name),

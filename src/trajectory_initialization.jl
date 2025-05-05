@@ -251,8 +251,7 @@ function initialize_trajectory(
     Δt_bounds::ScalarBound=(0.5 * Δt, 1.5 * Δt),
     drive_derivative_σ::Float64=0.1,
     a_guess::Union{AbstractMatrix{<:Float64}, Nothing}=nothing,
-    phase_name::Symbol=:ϕ,
-    phase_data::Union{AbstractVector{<:Real}, Nothing}=nothing,
+    global_data::NamedTuple{gname, <:Tuple{Vararg{AbstractVector{<:Real}}}} where gname=(;),
     verbose=false,
 )
     @assert length(state_data) == length(state_names) == length(state_inits) == length(state_goals) "state_data, state_names, state_inits, and state_goals must have the same length"
@@ -342,9 +341,6 @@ function initialize_trajectory(
         controls = (control_names[end],)
     end
 
-    # Construct global data for free phases
-    global_data = isnothing(phase_data) ? (;) : (; phase_name => phase_data)
-
     return NamedTrajectory(
         (; (names .=> values)...);
         controls=controls,
@@ -373,7 +369,6 @@ function initialize_trajectory(
     system::Union{AbstractQuantumSystem, Nothing}=nothing,
     rollout_integrator::Function=expv,
     geodesic=true,
-    phase_operators::Union{AbstractVector{<:AbstractMatrix}, Nothing}=nothing,
     kwargs...
 )
     # Construct timesteps
@@ -407,10 +402,6 @@ function initialize_trajectory(
         @assert !isnothing(system) "System must be provided if a_guess is provided."
         Ũ⃗_traj = unitary_rollout(Ũ⃗_init, a_guess, timesteps, system; integrator=rollout_integrator)
     end
-
-    # Construct phase data
-    phase_data = isnothing(phase_operators) ? nothing : π * randn(length(phase_operators))
-
     
     return initialize_trajectory(
         [Ũ⃗_traj],
@@ -420,7 +411,6 @@ function initialize_trajectory(
         T,
         Δt,
         args...;
-        phase_data=phase_data,
         a_guess=a_guess,
         kwargs...
     )

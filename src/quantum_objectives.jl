@@ -71,16 +71,26 @@ end
 function UnitaryFreePhaseInfidelityObjective(
     U_goal::Function,
     Ũ⃗_name::Symbol,
-    θ_name::Symbol,
+    θ_names::AbstractVector{Symbol},
     traj::NamedTrajectory;
     Q=100.0
 )
-    d = traj.global_dims[θ_name]
-    function ℓ(x)
-        Ũ⃗, θ = x[1:end-d], x[end-d+1:end]
+    d = sum(traj.global_dims[n] for n in θ_names)
+    function ℓ(z)
+        Ũ⃗, θ = z[1:end-d], z[end-d+1:end]
         return abs(1 - QuantumObjectives.unitary_fidelity_loss(Ũ⃗, U_goal(θ)))
     end
-    return TerminalObjective(ℓ, Ũ⃗_name, traj; Q=Q, global_names=[θ_name])
+    return TerminalObjective(ℓ, Ũ⃗_name, traj; Q=Q, global_names=θ_names)
+end
+
+function UnitaryFreePhaseInfidelityObjective(
+    U_goal::Function,
+    Ũ⃗_name::Symbol,
+    θ_name::Symbol,
+    traj::NamedTrajectory;
+    kwargs...
+)
+    return UnitaryFreePhaseInfidelityObjective(U_goal, Ũ⃗_name, [θ_name], traj; kwargs...)
 end
 
 # ---------------------------------------------------------
