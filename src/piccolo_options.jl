@@ -26,7 +26,7 @@ Options for the Piccolo quantum optimal control library.
     timesteps_all_equal::Bool = true
     rollout_integrator::Function = expv
     geodesic::Bool = true
-    zero_initial_and_final_derivative::Bool = true
+    zero_initial_and_final_derivative::Bool = false 
     complex_control_norm_constraint_name::Union{Nothing, Symbol} = nothing
     complex_control_norm_constraint_radius::Float64 = 1.0
     bound_state::Bool = false

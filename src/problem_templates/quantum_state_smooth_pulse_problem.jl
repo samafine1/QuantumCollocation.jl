@@ -65,7 +65,7 @@ function QuantumStateSmoothPulseProblem(
     init_trajectory::Union{NamedTrajectory, Nothing}=nothing,
     a_bound::Float64=1.0,
     a_bounds::Vector{Float64}=fill(a_bound, sys.n_drives),
-    a_guess::Union{Matrix{Float64}, Nothing}=nothing,
+    a_guess::Union{AbstractMatrix{Float64}, Nothing}=nothing,
     da_bound::Float64=Inf,
     da_bounds::Vector{Float64}=fill(da_bound, sys.n_drives),
     dda_bound::Float64=1.0,
