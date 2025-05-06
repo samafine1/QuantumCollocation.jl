@@ -1,7 +1,7 @@
 name = "QuantumCollocation"
 uuid = "0dc23a59-5ffb-49af-b6bd-932a8ae77adf"
 authors = ["Aaron Trowbridge <aaron.j.trowbridge@gmail.com> and contributors"]
-version = "0.7.1"
+version = "0.7.2"
 
 [deps]
 DirectTrajOpt = "c823fa1f-8872-4af5-b810-2b9b72bbbf56"
