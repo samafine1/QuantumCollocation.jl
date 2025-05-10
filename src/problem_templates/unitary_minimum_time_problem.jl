@@ -78,7 +78,7 @@ function UnitaryMinimumTimeProblem(
     prob::DirectTrajOptProblem,
     goal::AbstractPiccoloOperator;
     objective::Objective=prob.objective,
-    constraints::AbstractVector{<:AbstractConstraint}=prob.constraints,
+    constraints::AbstractVector{<:AbstractConstraint}=deepcopy(prob.constraints),
     kwargs...
 )
     return UnitaryMinimumTimeProblem(
@@ -140,7 +140,7 @@ function UnitaryMinimumTimeProblem(
     prob::DirectTrajOptProblem,
     goal::Function;
     objective::Objective=prob.objective,
-    constraints::AbstractVector{<:AbstractConstraint}=prob.constraints,
+    constraints::AbstractVector{<:AbstractConstraint}=deepcopy(prob.constraints),
     kwargs...
 )
     return UnitaryMinimumTimeProblem(
