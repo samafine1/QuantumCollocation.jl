@@ -80,7 +80,7 @@ function UnitaryFreePhaseInfidelityObjective(
         Ũ⃗, θ = z[1:end-d], z[end-d+1:end]
         return abs(1 - QuantumObjectives.unitary_fidelity_loss(Ũ⃗, U_goal(θ)))
     end
-    return TerminalObjective(ℓ, Ũ⃗_name, traj; Q=Q, global_names=θ_names)
+    return TerminalObjective(ℓ, Ũ⃗_name, θ_names, traj; Q=Q)
 end
 
 function UnitaryFreePhaseInfidelityObjective(

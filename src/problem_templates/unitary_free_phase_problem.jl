@@ -33,7 +33,7 @@ function UnitaryFreePhaseProblem(
     piccolo_options::PiccoloOptions=PiccoloOptions(),
 )
     if piccolo_options.verbose
-        println("    constructing UnitarySmoothPulseProblem...")
+        println("    constructing UnitaryFreePhaseProblem...")
         println("\tusing integrator: $(typeof(unitary_integrator))")
         println("\tinitial free phases: $(phase_name) = $(initial_phases)")
     end
@@ -105,7 +105,7 @@ function UnitaryFreePhaseProblem(
         x, y = z[1:length(z) ÷ 2], z[length(z) ÷ 2 + 1:end]
         return x .^ 2 + y .^2 .- 1
     end
-    push!(constraints, GlobalNonlinearConstraint(phase_norm, phase_names, traj))
+    push!(constraints, NonlinearGlobalConstraint(phase_norm, phase_names, traj))
 
     integrators = [
         unitary_integrator(system, traj, state_name, control_name),
