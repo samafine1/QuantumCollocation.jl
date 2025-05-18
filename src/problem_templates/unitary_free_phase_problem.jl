@@ -1,5 +1,8 @@
 export UnitaryFreePhaseProblem
 
+mean(x::AbstractVector) = sum(x) / length(x)
+
+
 """
 
 """
@@ -7,13 +10,13 @@ function UnitaryFreePhaseProblem(
     system::AbstractQuantumSystem,
     goal::Function,
     T::Int,
-    Δt::Union{Float64, <:AbstractVector{Float64}},
-    initial_phases::AbstractVector{Float64};
+    Δt::Union{Float64, <:AbstractVector{Float64}};
     unitary_integrator=UnitaryIntegrator,
     state_name::Symbol = :Ũ⃗,
     control_name::Symbol = :a,
     timestep_name::Symbol = :Δt,
     phase_name::Symbol = :θ,
+    init_phases::Union{AbstractVector{Float64}, Nothing}=nothing,
     init_trajectory::Union{NamedTrajectory, Nothing}=nothing,
     a_guess::Union{Matrix{Float64}, Nothing}=nothing,
     a_bound::Float64=1.0,
@@ -35,26 +38,28 @@ function UnitaryFreePhaseProblem(
     if piccolo_options.verbose
         println("    constructing UnitaryFreePhaseProblem...")
         println("\tusing integrator: $(typeof(unitary_integrator))")
-        println("\tinitial free phases: $(phase_name) = $(initial_phases)")
+        println("\tinitial free phases: $(phase_name) = $(init_phases)")
     end
 
     # Construct global phases
     x = Symbol("cos$(phase_name)")
     y = Symbol("sin$(phase_name)")
     phase_names = [x, y]
-    phase_data = (; x => cos.(initial_phases), y => sin.(initial_phases))
-    trig_phases = [phase_data[x]; phase_data[y]]
     if piccolo_options.verbose
         println("\tusing global names: ", phase_names)
     end
 
-    @assert goal(trig_phases) isa AbstractPiccoloOperator "expected goal([cos(θ); sin(θ)])"
-    eval_goal = goal(trig_phases)
-
     # Trajectory
     if !isnothing(init_trajectory)
+        trig_phases = [init_trajectory.global_data[x]; init_trajectory.global_data[y]]
+        @assert goal(trig_phases) isa AbstractPiccoloOperator "expected goal([cos(θ); sin(θ)])"
+        eval_goal = goal(trig_phases)
         traj = init_trajectory
     else
+        phase_data = (; x => cos.(init_phases), y => sin.(init_phases))
+        trig_phases = [phase_data[x]; phase_data[y]]
+        @assert goal(trig_phases) isa AbstractPiccoloOperator "expected goal([cos(θ); sin(θ)])"
+        eval_goal = goal(trig_phases)
         traj = initialize_trajectory(
             eval_goal,
             T,
@@ -67,7 +72,7 @@ function UnitaryFreePhaseProblem(
             Δt_bounds=(Δt_min, Δt_max),
             zero_initial_and_final_derivative=piccolo_options.zero_initial_and_final_derivative,
             geodesic=piccolo_options.geodesic,
-            bound_state=piccolo_options.bound_state,
+            bound_state=false,  # TODO: Hardcoded
             a_guess=a_guess,
             system=system,
             rollout_integrator=piccolo_options.rollout_integrator,
