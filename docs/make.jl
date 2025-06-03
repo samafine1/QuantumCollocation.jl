@@ -35,6 +35,7 @@ format = Documenter.HTML(;
             ],
         ),
     )),
+    size_threshold=4_000_000,
 )
 
 src = joinpath(@__DIR__, "src")
