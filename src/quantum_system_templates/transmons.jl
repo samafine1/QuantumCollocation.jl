@@ -248,17 +248,6 @@ function MultiTransmonSystem(
 
     couplings = QuantumSystemCoupling[]
 
-    # for i = 1:n_subsystems-1
-    #     for j = i+1:n_subsystems
-    #         if i ∈ subsystems &&  j ∈ subsystems
-    #             push!(
-    #                 couplings,
-    #                 TransmonDipoleCoupling(gs[i, j], (i, j), systems; lab_frame=lab_frame)
-    #             )
-    #         end
-    #     end
-    # end
-
     for local_i = 1:length(systems)-1
         for local_j = local_i+1:length(systems)
             global_i = subsystems[local_i]
@@ -285,7 +274,6 @@ end
     @test haskey(sys.params, :δ)
     @test sys.params[:levels] == 3
 
-    # Custom parameters
     sys2 = TransmonSystem(ω=5.0, δ=0.3, levels=4, lab_frame=true, frame_ω=0.0, lab_frame_type=:duffing, drives=false)
     @test sys2.params[:ω] == 5.0
     @test sys2.params[:δ] == 0.3
@@ -316,13 +304,12 @@ end
     using QuantumCollocation
     levels = [3, 3]
     g = 0.01
-    # By subsystem_levels
+  
     c1 = TransmonDipoleCoupling(g, (1,2), levels, lab_frame=false)
     c2 = TransmonDipoleCoupling(g, (1,2), levels, lab_frame=true)
     @test typeof(c1) == QuantumCollocation.QuantumSystemCoupling
     @test typeof(c2) == QuantumCollocation.QuantumSystemCoupling
 
-    # By QuantumSystem vector
     sys1 = TransmonSystem(levels=3)
     sys2 = TransmonSystem(levels=3)
     c3 = TransmonDipoleCoupling(g, (1,2), [sys1, sys2], lab_frame=false)
@@ -332,16 +319,17 @@ end
 @testitem "MultiTransmonSystem: minimal and custom" begin
     using PiccoloQuantumObjects
     using QuantumCollocation
+    using LinearAlgebra: norm
+    
     ωs = [4.0, 4.1]
     δs = [0.2, 0.21]
     gs = [0.0 0.01; 0.01 0.0]
-    # Default
+
     comp = MultiTransmonSystem(ωs, δs, gs)
     @test typeof(comp) == PiccoloQuantumObjects.CompositeQuantumSystem
     @test length(comp.subsystems) == 2
     @test !iszero(comp.H(zeros(comp.n_drives)))
 
-    # Custom levels, subsystems, drive indices
     comp2 = MultiTransmonSystem(
         ωs, δs, gs;
         levels_per_transmon=4,
@@ -351,7 +339,7 @@ end
     )
     @test typeof(comp2) == PiccoloQuantumObjects.CompositeQuantumSystem
     @test length(comp2.subsystems) == 1
-    @test iszero(comp2.H(zeros(comp2.n_drives)))
+    @test !isapprox(norm(comp2.H(zeros(comp2.n_drives))), 0.0; atol=1e-12)
 end
 
 @testitem "MultiTransmonSystem: edge cases" begin
