@@ -96,6 +96,7 @@ end
 @testitem "Minimum time Hadamard gate" begin
     using NamedTrajectories
     using PiccoloQuantumObjects 
+    using QuantumCollocation
 
     H_drift = PAULIS[:Z]
     H_drives = [PAULIS[:X], PAULIS[:Y]]
@@ -107,7 +108,7 @@ end
 
     prob = UnitarySmoothPulseProblem(
         sys, U_goal, T, Δt,
-        piccolo_options=PiccoloOptions(verbose=false)
+        piccolo_options=QuantumCollocation.Options.PiccoloOptions(verbose=false)
     )
 
     before = unitary_rollout_fidelity(prob.trajectory, sys)
