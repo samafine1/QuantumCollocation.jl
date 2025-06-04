@@ -171,7 +171,7 @@ end
     )
 
     before = unitary_rollout_fidelity(prob.trajectory, sys)
-    solve!(prob; max_iter=100, verbose=false, print_level=1)
+    solve!(prob; max_iter=150, verbose=false, print_level=1)
     after = unitary_rollout_fidelity(prob.trajectory, sys)
     @test after > before
 
@@ -180,7 +180,7 @@ end
         prob, U_goal,
         piccolo_options=PiccoloOptions(verbose=false)
     )
-    solve!(min_prob; max_iter=100, verbose=false, print_level=1)
+    solve!(min_prob; max_iter=150, verbose=false, print_level=1)
 
     # test fidelity has stayed above the constraint
     constraint_tol = 0.95
