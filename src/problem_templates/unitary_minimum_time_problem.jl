@@ -77,15 +77,15 @@ end
 function UnitaryMinimumTimeProblem(
     prob::DirectTrajOptProblem,
     goal::AbstractPiccoloOperator;
-    objective::Objective=prob.objective,
-    constraints::AbstractVector{<:AbstractConstraint}=prob.constraints,
+    objective::Objective=deepcopy(prob.objective),
+    constraints::AbstractVector{<:AbstractConstraint}=deepcopy(prob.constraints),
     kwargs...
 )
     return UnitaryMinimumTimeProblem(
-        prob.trajectory,
+        deepcopy(prob.trajectory),
         goal,
         objective,
-        prob.dynamics,
+        deepcopy(prob.dynamics),
         constraints;
         kwargs...
     )
@@ -98,7 +98,7 @@ end
     using PiccoloQuantumObjects 
     using QuantumCollocation
 
-    H_drift = PAULIS[:Z]
+    H_drift = 0.1PAULIS[:Z]
     H_drives = [PAULIS[:X], PAULIS[:Y]]
     U_goal = GATES[:H]
     T = 51
@@ -107,8 +107,8 @@ end
     sys = QuantumSystem(H_drift, H_drives)
 
     prob = UnitarySmoothPulseProblem(
-        sys, U_goal, T, Δt,
-        piccolo_options=QuantumCollocation.Options.PiccoloOptions(verbose=false)
+        sys, U_goal, T, Δt, Δt_min=Δt * 0.01,
+        piccolo_options=PiccoloOptions(verbose=false)
     )
 
     before = unitary_rollout_fidelity(prob.trajectory, sys)
