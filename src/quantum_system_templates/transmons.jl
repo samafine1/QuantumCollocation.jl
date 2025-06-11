@@ -1,7 +1,6 @@
 export TransmonSystem
 export TransmonDipoleCoupling
 export MultiTransmonSystem
-using QuantumCollocation
 
 @doc raw"""
     TransmonSystem(;
@@ -135,13 +134,12 @@ where `a_i` is the annihilation operator for the `i`th transmon.
 """
 function TransmonDipoleCoupling end
 
-function lift(op::AbstractMatrix, which::Int, dims::Vector{Int})
-    ops = [i == which ? op : Matrix{eltype(op)}(I, d, d) for (i, d) in enumerate(dims)]
-    result = ops[1]
-    for i in 2:length(ops)
-        result = kron(result, ops[i])
-    end
-    return result
+# TODO: this function is already difined in PiccoloQuantumObjects.jl so should be used from there, but it is not in a module
+function lift_operator(operator::AbstractMatrix{T}, i::Int, subsystem_levels::AbstractVector{Int}) where T <: Number
+    @assert size(operator, 1) == subsystem_levels[i] "Operator must match subsystem level."
+    Is = [Matrix{T}(I(l)) for l ∈ subsystem_levels]
+    Is[i] = operator
+    return reduce(kron, Is)
 end
 
 struct QuantumSystemCoupling
@@ -162,9 +160,10 @@ function TransmonDipoleCoupling(
     lab_frame::Bool=false,
     mulitply_by_2π::Bool=true,
 )
+
     i, j = pair
-    a_i = lift(annihilate(subsystem_levels[i]), i, subsystem_levels)
-    a_j = lift(annihilate(subsystem_levels[j]), j, subsystem_levels)
+    a_i = lift_operator(annihilate(subsystem_levels[i]), i, subsystem_levels)
+    a_j = lift_operator(annihilate(subsystem_levels[j]), j, subsystem_levels)
 
     if lab_frame
         op = g_ij * (a_i + a_i') * (a_j + a_j')
@@ -267,7 +266,6 @@ end
 
 @testitem "TransmonSystem: default and custom parameters" begin
     using PiccoloQuantumObjects
-    using QuantumCollocation
     sys = TransmonSystem()
     @test typeof(sys) == QuantumSystem
     @test haskey(sys.params, :ω)
@@ -284,7 +282,6 @@ end
 
 @testitem "TransmonSystem: lab_frame_type variations" begin
     using PiccoloQuantumObjects
-    using QuantumCollocation
     sys_duffing = TransmonSystem(lab_frame=true, lab_frame_type=:duffing)
     sys_quartic = TransmonSystem(lab_frame=true, lab_frame_type=:quartic)
     sys_cosine = TransmonSystem(lab_frame=true, lab_frame_type=:cosine)
@@ -294,39 +291,35 @@ end
 end
 
 @testitem "TransmonSystem: error on invalid lab_frame_type" begin
-    using PiccoloQuantumObjects
-    using QuantumCollocation
     @test_throws AssertionError TransmonSystem(lab_frame=true, lab_frame_type=:invalid)
 end
 
 @testitem "TransmonDipoleCoupling: both constructors and frames" begin
     using PiccoloQuantumObjects
-    using QuantumCollocation
     levels = [3, 3]
     g = 0.01
   
     c1 = TransmonDipoleCoupling(g, (1,2), levels, lab_frame=false)
     c2 = TransmonDipoleCoupling(g, (1,2), levels, lab_frame=true)
-    @test typeof(c1) == QuantumCollocation.QuantumSystemCoupling
-    @test typeof(c2) == QuantumCollocation.QuantumSystemCoupling
+    @test typeof(c1) == QuantumSystemCoupling
+    @test typeof(c2) == QuantumSystemCoupling
 
     sys1 = TransmonSystem(levels=3)
     sys2 = TransmonSystem(levels=3)
     c3 = TransmonDipoleCoupling(g, (1,2), [sys1, sys2], lab_frame=false)
-    @test typeof(c3) == QuantumCollocation.QuantumSystemCoupling
+    @test typeof(c3) == QuantumSystemCoupling
 end
 
 @testitem "MultiTransmonSystem: minimal and custom" begin
-    using PiccoloQuantumObjects
-    using QuantumCollocation
     using LinearAlgebra: norm
+    using PiccoloQuantumObjects
     
     ωs = [4.0, 4.1]
     δs = [0.2, 0.21]
     gs = [0.0 0.01; 0.01 0.0]
 
     comp = MultiTransmonSystem(ωs, δs, gs)
-    @test typeof(comp) == PiccoloQuantumObjects.CompositeQuantumSystem
+    @test typeof(comp) == CompositeQuantumSystem
     @test length(comp.subsystems) == 2
     @test !iszero(comp.H(zeros(comp.n_drives)))
 
@@ -337,14 +330,13 @@ end
         subsystems=[1],
         subsystem_drive_indices=[1]
     )
-    @test typeof(comp2) == PiccoloQuantumObjects.CompositeQuantumSystem
+    @test typeof(comp2) == CompositeQuantumSystem
     @test length(comp2.subsystems) == 1
     @test !isapprox(norm(comp2.H(zeros(comp2.n_drives))), 0.0; atol=1e-12)
 end
 
 @testitem "MultiTransmonSystem: edge cases" begin
     using PiccoloQuantumObjects
-    using QuantumCollocation
     ωs = [4.0, 4.1, 4.2]
     δs = [0.2, 0.21, 0.22]
     gs = [0.0 0.01 0.02; 0.01 0.0 0.03; 0.02 0.03 0.0]
@@ -354,7 +346,7 @@ end
         subsystems=[1,3],
         subsystem_drive_indices=[3]
     )
-    @test typeof(comp) == PiccoloQuantumObjects.CompositeQuantumSystem
+    @test typeof(comp) == CompositeQuantumSystem
     @test length(comp.subsystems) == 2
     # Only one drive
     @test comp.subsystems[1].params[:drives] == false

@@ -167,7 +167,6 @@ end
 
 @testitem "Hadamard gate" begin
     using PiccoloQuantumObjects 
-    using QuantumCollocation
 
     sys = QuantumSystem(GATES[:Z], [GATES[:X], GATES[:Y]])
     U_goal = GATES[:H]
@@ -177,7 +176,7 @@ end
     prob = UnitarySmoothPulseProblem(
         sys, U_goal, T, Δt;
         da_bound=1.0,
-        piccolo_options=QuantumCollocation.Options.PiccoloOptions(verbose=false)
+        piccolo_options=PiccoloOptions(verbose=false)
     )
 
     initial = unitary_rollout_fidelity(prob.trajectory, sys)
@@ -188,7 +187,6 @@ end
 
 @testitem "Hadamard gate with bound states and control norm constraint" begin
     using PiccoloQuantumObjects 
-    using QuantumCollocation
 
     sys = QuantumSystem(GATES[:Z], [GATES[:X], GATES[:Y]])
     U_goal = GATES[:H]
@@ -197,7 +195,7 @@ end
 
     prob = UnitarySmoothPulseProblem(
         sys, U_goal, T, Δt,
-        piccolo_options=QuantumCollocation.Options.PiccoloOptions(
+        piccolo_options=PiccoloOptions(
             verbose=false,
             bound_state=true,
             complex_control_norm_constraint_name=:a
@@ -213,7 +211,6 @@ end
 
 @testitem "EmbeddedOperator Hadamard gate" begin
     using PiccoloQuantumObjects 
-    using QuantumCollocation
 
     a = annihilate(3)
     sys = QuantumSystem([(a + a')/2, (a - a')/(2im)])
@@ -223,7 +220,7 @@ end
 
     prob = UnitarySmoothPulseProblem(
         sys, U_goal, T, Δt,
-        piccolo_options=QuantumCollocation.Options.PiccoloOptions(verbose=false)
+        piccolo_options=PiccoloOptions(verbose=false)
     )
 
     initial = unitary_rollout_fidelity(prob.trajectory, sys, subspace=U_goal.subspace)

@@ -151,7 +151,6 @@ end
 
 @testitem "Sample systems with single initial, target" begin
     using PiccoloQuantumObjects
-    using QuantumCollocation
 
     T = 50
     Δt = 0.2
@@ -162,7 +161,7 @@ end
     
     prob = QuantumStateSamplingProblem(
         [sys1, sys2], ψ_init, ψ_target, T, Δt;
-        piccolo_options=QuantumCollocation.Options.PiccoloOptions(verbose=false)
+        piccolo_options=PiccoloOptions(verbose=false)
     )
     
     state_name = :ψ̃
@@ -185,7 +184,6 @@ end
 
 @testitem "Sample systems with multiple initial, target" begin
     using PiccoloQuantumObjects
-    using QuantumCollocation
 
     T = 50
     Δt = 0.2
@@ -198,7 +196,7 @@ end
     
     prob = QuantumStateSamplingProblem(
         [sys1, sys2], ψ_inits, ψ_targets, T, Δt;
-        piccolo_options=QuantumCollocation.Options.PiccoloOptions(verbose=false)
+        piccolo_options=PiccoloOptions(verbose=false)
     )
     
     state_name = :ψ̃

@@ -188,7 +188,6 @@ end
 
 @testitem "Test quantum state smooth pulse" begin
     using PiccoloQuantumObjects 
-    using QuantumCollocation
 
     T = 51
     Δt = 0.2
@@ -200,7 +199,7 @@ end
     # --------------------------------
     prob = QuantumStateSmoothPulseProblem(
         sys, ψ_init, ψ_target, T, Δt;
-        piccolo_options=QuantumCollocation.Options.PiccoloOptions(verbose=false)
+        piccolo_options=PiccoloOptions(verbose=false)
     )
     initial = rollout_fidelity(prob.trajectory, sys)
     solve!(prob, max_iter=50, print_level=1, verbose=false)
@@ -210,7 +209,6 @@ end
 
 @testitem "Test multiple quantum states smooth pulse" begin
     using PiccoloQuantumObjects 
-    using QuantumCollocation
 
     T = 50
     Δt = 0.2
@@ -220,7 +218,7 @@ end
 
     prob = QuantumStateSmoothPulseProblem(
         sys, ψ_inits, ψ_targets, T, Δt;
-        piccolo_options=QuantumCollocation.Options.PiccoloOptions(verbose=false)
+        piccolo_options=PiccoloOptions(verbose=false)
     )
     initial = rollout_fidelity(prob.trajectory, sys)
     solve!(prob, max_iter=50, print_level=1, verbose=false)

@@ -273,7 +273,6 @@ function initialize_trajectory(
     Δt_bounds::ScalarBound=(0.5 * Δt, 1.5 * Δt),
     drive_derivative_σ::Float64=0.1,
     a_guess::Union{AbstractMatrix{<:Float64}, Nothing}=nothing,
-    system::Union{OpenQuantumSystem, Nothing}=nothing,
     phase_name::Symbol=:ϕ,
     phase_data::Union{AbstractVector{<:Real}, Nothing}=nothing,
     verbose=false,
@@ -349,7 +348,6 @@ function initialize_trajectory(
             drive_derivative_σ
         )
     else
-        @assert !isnothing(system) "System must be provided if a_guess is provided."
         # Use provided controls and take derivatives
         a_values = initialize_control_trajectory(a_guess, Δt, n_control_derivatives)
     end
@@ -773,12 +771,17 @@ end
     @test_throws MethodError TrajectoryInitialization.initialize_control_trajectory(
         n_drives, 2, T, "notabounds", 0.1
     )
-    # a_guess provided but system missing
-    a_guess = randn(n_drives, T)
-    @test_throws AssertionError TrajectoryInitialization.initialize_trajectory(
-        state_data, state_inits, state_goals, state_names, T, Δt, n_drives, control_bounds;
-        a_guess=a_guess
-    )
+end
+
+@testitem "linear_interpolation for matrices" begin
+    X = [1.0 2.0; 3.0 4.0]
+    Y = [5.0 6.0; 7.0 8.0]
+    n = 3
+    result = linear_interpolation(X, Y, n)
+    @test size(result) == (2, 2 * n)
+    @test result[:, 1:2] ≈ X
+    @test result[:, 5:6] ≈ Y
+    @test result[:, 3:4] ≈ (X + Y) / 2
 end
 
 
