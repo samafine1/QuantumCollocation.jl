@@ -11,10 +11,6 @@ using PiccoloQuantumObjects
 using DirectTrajOpt
 using TestItems
 
-# using PiccoloQuantumObjects.EmbeddedOperators: get_leakage_indices
-# using LinearAlgebra: norm
-# using DirectTrajOpt: KnotPointObjective
-
 # --------------------------------------------------------- 
 #                        Kets
 # ---------------------------------------------------------
