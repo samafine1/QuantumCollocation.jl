@@ -9,6 +9,7 @@ using LinearAlgebra
 using NamedTrajectories
 using PiccoloQuantumObjects
 using DirectTrajOpt
+using TestItems
 
 # --------------------------------------------------------- 
 #                        Kets
@@ -68,6 +69,38 @@ function UnitaryInfidelityObjective(
 end
 
 # ---------------------------------------------------------
+#                Leakage Suppression Objective
+# ---------------------------------------------------------
+
+"""
+        LeakageSuppressionObjective(leakage_inds::AbstractVector{<:Integer}, name::Symbol, traj::NamedTrajectory; kwargs...)
+
+Construct a `KnotPointObjective` that penalizes leakage outside the computational subspace.
+
+- `leakage_inds`: Vector of indices specifying the leakage subspace in the isomorphic vector representation (e.g., `get_iso_vec_leakage_indices`).
+- `name`: The variable name in the trajectory (e.g., `:u`).
+- `traj`: The `NamedTrajectory` containing the variable.
+- `kwargs...`: Passed to `KnotPointObjective`.
+
+The objective is: 
+    sum_{i ∈ I_leakage} abs(U[i])
+where `I_leakage` is given by `leakage_inds` and `U` is the vectorized variable.
+"""
+function LeakageSuppressionObjective(
+    leakage_inds::AbstractVector{<:Integer},
+    name::Symbol,
+    traj::NamedTrajectory;
+    kwargs...
+)
+    return KnotPointObjective(
+        (U, args...) -> sum(abs(U[i]) for i in leakage_inds),
+        name,
+        traj;
+        kwargs...
+    )
+end
+
+# ---------------------------------------------------------
 #                        Density Matrices
 # ---------------------------------------------------------
 
@@ -120,5 +153,22 @@ function UnitarySensitivityObjective(
     )
 end
 
+@testitem "LeakageSuppressionObjective basic functionality" begin
+    using PiccoloQuantumObjects
+    using NamedTrajectories
+    
+    # U with zeros everywhere (no leakage)
+    U = zeros(3,3)
+    traj = NamedTrajectory((; u = reshape(U, 9, 1)); controls=:u, timestep=1.0)
+    leakage_inds = [4, 8]
+    obj = QuantumObjectives.LeakageSuppressionObjective(leakage_inds, :u, traj)
+    @test obj.L(traj.datavec) == 0.0
+
+    # U with leakage at (1,2) and (2,3)
+    U[1,2] = 2.0
+    U[2,3] = 3.0
+    traj = NamedTrajectory((; u = reshape(U, 9, 1)); controls=:u, timestep=1.0)
+    @test obj.L(traj.datavec) ≈ 2.0 + 3.0
+end
 
 end
