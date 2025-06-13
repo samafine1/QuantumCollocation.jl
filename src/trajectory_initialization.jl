@@ -6,6 +6,7 @@ export unitary_linear_interpolation
 export initialize_trajectory
 
 using NamedTrajectories
+import NamedTrajectories: ScalarBound, VectorBound
 using PiccoloQuantumObjects
 
 using Distributions
@@ -139,9 +140,6 @@ function unitary_geodesic(
 end
 
 # ============================================================================= #
-
-const VectorBound = Union{AbstractVector{R}, Tuple{AbstractVector{R}, AbstractVector{R}}} where R <: Real
-const ScalarBound = Union{R, Tuple{R, R}} where R <: Real
 
 function initialize_unitary_trajectory(
     U_init::AbstractMatrix{<:Number},

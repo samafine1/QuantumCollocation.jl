@@ -87,6 +87,8 @@ function UnitaryVariationalProblem(
     constraints::Vector{<:AbstractConstraint}=AbstractConstraint[],
     piccolo_options::PiccoloOptions=PiccoloOptions(),
 )
+    @assert true "Broken by NT refactor"
+
     if piccolo_options.verbose
         println("    constructing UnitaryVariationalProblem...")
         println("\tusing integrator: $(typeof(variational_integrator))")
@@ -126,6 +128,7 @@ function UnitaryVariationalProblem(
         Symbol(string(variational_state_name) * "$(i)") for i in eachindex(system.G_vars)
     ]
 
+    # TODO: Must refactor
     for (name, scale, Ũ⃗_v) in zip(variational_state_names, variational_scales, Ũ⃗_vars)
         add_component!(traj, name, Ũ⃗_v / scale; type=:state)
         traj.initial = merge(traj.initial, (name => Ũ⃗_v[:, 1] / scale,))
