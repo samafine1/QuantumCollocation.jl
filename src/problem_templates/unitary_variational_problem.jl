@@ -15,10 +15,14 @@ export UnitaryVariationalProblem
 Constructs a unitary variational problem for optimizing quantum control trajectories.
 
 # Arguments
+
 - `system::VariationalQuantumSystem`: The quantum system to be controlled, containing variational parameters.
 - `goal::AbstractPiccoloOperator`: The target operator or state to achieve at the end of the trajectory.
 - `T::Int`: The total number of timesteps in the trajectory.
 - `Δt::Union{Float64, <:AbstractVector{Float64}}`: The timestep duration or a vector of timestep durations.
+
+# Keyword Arguments
+
 - `robust_times::AbstractVector`: Times at which robustness to variations in the trajectory is enforced.
 - `sensitive_times::AbstractVector`: Times at which sensitivity to variations in the trajectory is enhanced.
 - `unitary_integrator`: The integrator used for unitary evolution (default: `VariationalUnitaryIntegrator`).
@@ -44,10 +48,12 @@ Constructs a unitary variational problem for optimizing quantum control trajecto
 - `piccolo_options::PiccoloOptions`: Options for configuring the Piccolo optimization framework.
 
 # Returns
+
 A `DirectTrajOptProblem` object representing the optimization problem, including the 
 trajectory, objective, integrators, and constraints.
 
 # Notes
+
 This function constructs a trajectory optimization problem for quantum control using 
 variational principles. It supports robust and sensitive trajectory design, regularization, 
 and optional constraints. The problem is solved using the Piccolo optimization framework.
@@ -87,12 +93,16 @@ function UnitaryVariationalProblem(
     constraints::Vector{<:AbstractConstraint}=AbstractConstraint[],
     piccolo_options::PiccoloOptions=PiccoloOptions(),
 )
-    @assert true "Broken by NT refactor"
-
     if piccolo_options.verbose
         println("    constructing UnitaryVariationalProblem...")
         println("\tusing integrator: $(typeof(variational_integrator))")
         println("\ttotal variational parameters: $(length(system.G_vars))")
+        if !isempty(robust_times)
+            println("\trobust knot points: $(robust_times)")
+        end
+        if !isempty(sensitive_times)
+            println("\tsensitive knot points: $(sensitive_times)")
+        end
     end
 
     # Trajectory
@@ -124,15 +134,22 @@ function UnitaryVariationalProblem(
         drive_name=control_name
     )
 
-    variational_state_names = [
+    # Add variational components to the trajectory
+    var_state_names = Tuple(
         Symbol(string(variational_state_name) * "$(i)") for i in eachindex(system.G_vars)
-    ]
-
-    # TODO: Must refactor
-    for (name, scale, Ũ⃗_v) in zip(variational_state_names, variational_scales, Ũ⃗_vars)
-        add_component!(traj, name, Ũ⃗_v / scale; type=:state)
-        traj.initial = merge(traj.initial, (name => Ũ⃗_v[:, 1] / scale,))
-    end
+    )
+    var_comps_inits = NamedTuple{var_state_names}(
+        Ũ⃗_v[:, 1] / scale for (scale, Ũ⃗_v) in zip(variational_scales, Ũ⃗_vars)
+    )
+    var_comps_data = NamedTuple{var_state_names}(
+        Ũ⃗_v / scale for (scale, Ũ⃗_v) in zip(variational_scales, Ũ⃗_vars)
+    )
+    traj = add_components(
+        traj, 
+        var_comps_data; 
+        type=:state,
+        initial=merge(traj.initial, var_comps_inits)
+    )
 
     control_names = [
         name for name ∈ traj.names
@@ -147,7 +164,7 @@ function UnitaryVariationalProblem(
 
     # sensitivity
     for (name, scale, s, r) ∈ zip(
-        variational_state_names, 
+        var_state_names, 
         variational_scales, 
         sensitive_times, 
         robust_times
@@ -170,7 +187,7 @@ function UnitaryVariationalProblem(
 
     integrators = [
         variational_integrator(
-            system, traj, state_name, variational_state_names, control_name, 
+            system, traj, state_name, [var_state_names...], control_name, 
             scales=variational_scales
         ),
         DerivativeIntegrator(traj, control_name, control_names[2]),
@@ -216,5 +233,5 @@ end
 
     sense_n = norm(sense_scale * sense_prob.trajectory.Ũ⃗ᵥ1)
     rob_n = norm(rob_scale * rob_prob.trajectory.Ũ⃗ᵥ1)
-    @assert sense_n > rob_n
+    @test sense_n > rob_n
 end

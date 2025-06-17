@@ -1,10 +1,13 @@
 export UnitaryFreePhaseProblem
 
-mean(x::AbstractVector) = sum(x) / length(x)
-
 
 """
+    UnitaryFreePhaseProblem(system::AbstractQuantumSystem, goal::Function, T, Δt; kwargs...)
 
+
+Construct a `DirectTrajOptProblem` for a free-time unitary gate problem with smooth control pulses enforced by constraining the second derivative of the pulse trajectory. The problem follows the same structure as `UnitarySmoothPulseProblem`, but allows for free global phases on the goal unitary, via cosines and sines parameterizing phase variables.
+    
+The `goal` function should accept a vector of global phases `[cos(θ); sin(θ)]` and return an `AbstractPiccoloOperator`.
 """
 function UnitaryFreePhaseProblem(
     system::AbstractQuantumSystem,
@@ -72,12 +75,12 @@ function UnitaryFreePhaseProblem(
             Δt_bounds=(Δt_min, Δt_max),
             zero_initial_and_final_derivative=piccolo_options.zero_initial_and_final_derivative,
             geodesic=piccolo_options.geodesic,
-            bound_state=false,  # TODO: Hardcoded
+            bound_state=piccolo_options.bound_state,
             a_guess=a_guess,
             system=system,
             rollout_integrator=piccolo_options.rollout_integrator,
             verbose=piccolo_options.verbose,
-            global_data=phase_data,
+            global_component_data=phase_data,
         )
     end
 
@@ -124,4 +127,39 @@ function UnitaryFreePhaseProblem(
         integrators;
         constraints=constraints
     )
+end
+
+# *************************************************************************** #
+
+@testitem "UnitaryFreePhaseProblem: basic construction" begin
+    using PiccoloQuantumObjects
+
+    sys = QuantumSystem(0.3 * PAULIS.X, [PAULIS.Y])
+    U_goal = GATES.Z
+    T = 51
+    Δt = 0.2
+
+    function virtual_z(z::AbstractVector{<:Real})        
+        x, y = z[1:length(z)÷2], z[1+length(z)÷2:end]
+        # U_goal ≈ R * U
+        R = reduce(kron, [xᵢ * PAULIS.I + im * yᵢ * PAULIS.Z for (xᵢ, yᵢ) in zip(x, y)])
+        return R'U_goal
+    end
+
+    initial_phases = [pi/3]
+
+    prob = UnitaryFreePhaseProblem(
+        sys, virtual_z, T, Δt, 
+        init_phases=initial_phases,
+        piccolo_options=PiccoloOptions(verbose=false),
+        phase_name=:ϕ,
+    )
+
+    @test prob isa DirectTrajOptProblem
+    @test length(prob.trajectory.global_data) == 2length(initial_phases)
+    @test prob.trajectory.global_names == (:cosϕ, :sinϕ)
+
+    before = copy(prob.trajectory.global_data)
+    solve!(prob, max_iter=10, verbose=false, print_level=1)
+    @test prob.trajectory.global_data != before
 end

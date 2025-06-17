@@ -10,11 +10,15 @@ using TrajectoryIndexingUtils
 using NamedTrajectories
 using DirectTrajOpt
 using PiccoloQuantumObjects
-using LinearAlgebra
-using SparseArrays
+
 using ExponentialAction
 using JLD2
+using LinearAlgebra
+using SparseArrays
 using TestItems
+
+# using Statistics
+mean(x) = sum(x) / length(x)
 
 include("unitary_smooth_pulse_problem.jl")
 include("unitary_variational_problem.jl")
@@ -26,7 +30,7 @@ include("quantum_state_smooth_pulse_problem.jl")
 include("quantum_state_minimum_time_problem.jl")
 include("quantum_state_sampling_problem.jl")
 
-
+# TODO: refactor
 function apply_piccolo_options!(
     J::Objective,
     constraints::AbstractVector{<:AbstractConstraint},

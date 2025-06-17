@@ -54,7 +54,6 @@ function UnitaryMinimumTimeProblem(
     end
 
     objective += MinimumTimeObjective(trajectory, D=D)
-        # timesteps_all_equal=piccolo_options.timesteps_all_equal
 
     fidelity_constraint = FinalUnitaryFidelityConstraint(
         goal, unitary_name, final_fidelity, trajectory
@@ -81,7 +80,7 @@ function UnitaryMinimumTimeProblem(
     kwargs...
 )
     return UnitaryMinimumTimeProblem(
-        prob.trajectory,
+        deepcopy(prob.trajectory),
         goal,
         objective,
         prob.dynamics,
@@ -107,9 +106,7 @@ function UnitaryMinimumTimeProblem(
     piccolo_options::PiccoloOptions=PiccoloOptions(),
 )
     # Collect phase names
-    phase_names = [
-        n for n in keys(trajectory.global_data) if endswith(string(n), string(phase_name))
-    ]
+    phase_names = [n for n in trajectory.global_names if endswith(string(n), string(phase_name))]
 
     if piccolo_options.verbose
         println("    constructing UnitaryMinimumTimeProblem...")
@@ -142,7 +139,7 @@ function UnitaryMinimumTimeProblem(
     kwargs...
 )
     return UnitaryMinimumTimeProblem(
-        prob.trajectory,
+        deepcopy(prob.trajectory),
         goal,
         objective,
         prob.dynamics,

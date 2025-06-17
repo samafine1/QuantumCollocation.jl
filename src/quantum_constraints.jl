@@ -67,8 +67,7 @@ function FinalUnitaryFidelityConstraint(
     function terminal_constraint(z)
         Ũ⃗, θ = z[1:end-d], z[end-d+1:end]
         return [
-            # final_fidelity - QuantumObjectives.unitary_fidelity_loss(Ũ⃗, U_goal(θ))
-            log(final_fidelity / QuantumObjectives.unitary_fidelity_loss(Ũ⃗, U_goal(θ)))
+            final_fidelity - QuantumObjectives.unitary_fidelity_loss(Ũ⃗, U_goal(θ))
         ]
     end
 

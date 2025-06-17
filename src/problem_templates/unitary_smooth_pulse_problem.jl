@@ -2,7 +2,7 @@ export UnitarySmoothPulseProblem
 
 
 @doc raw"""
-    UnitarySmoothPulseProblem(system::AbstractQuantumSystem, operator, T, Δt; kwargs...)
+    UnitarySmoothPulseProblem(system::AbstractQuantumSystem, operator::AbstractPiccoloOperator, T::Int, Δt::Float64; kwargs...)
     UnitarySmoothPulseProblem(H_drift, H_drives, operator, T, Δt; kwargs...)
 
 Construct a `DirectTrajOptProblem` for a free-time unitary gate problem with smooth control pulses enforced by constraining the second derivative of the pulse trajectory, i.e.,

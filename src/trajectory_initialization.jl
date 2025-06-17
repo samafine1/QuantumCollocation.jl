@@ -6,7 +6,7 @@ export unitary_linear_interpolation
 export initialize_trajectory
 
 using NamedTrajectories
-import NamedTrajectories: ScalarBound, VectorBound
+import NamedTrajectories.StructNamedTrajectory: ScalarBound, VectorBound
 using PiccoloQuantumObjects
 
 using Distributions
@@ -241,7 +241,6 @@ function initialize_trajectory(
     n_drives::Int,
     control_bounds::Tuple{Vararg{VectorBound}};
     bound_state=false,
-    free_time=true,
     control_name=:a,
     n_control_derivatives::Int=length(control_bounds) - 1,
     zero_initial_and_final_derivative=false,
@@ -249,7 +248,7 @@ function initialize_trajectory(
     Δt_bounds::ScalarBound=(0.5 * Δt, 1.5 * Δt),
     drive_derivative_σ::Float64=0.1,
     a_guess::Union{AbstractMatrix{<:Float64}, Nothing}=nothing,
-    global_data::NamedTuple{gname, <:Tuple{Vararg{AbstractVector{<:Real}}}} where gname=(;),
+    global_component_data::NamedTuple{gname, <:Tuple{Vararg{AbstractVector{<:Real}}}} where gname=(;),
     verbose=false,
 )
     @assert length(state_data) == length(state_names) == length(state_inits) == length(state_goals) "state_data, state_names, state_inits, and state_goals must have the same length"
@@ -271,19 +270,15 @@ function initialize_trajectory(
     control_bounds = NamedTuple{control_names}(control_bounds)
 
     # Timestep data
-    if free_time
-        if Δt isa Real
-            Δt = fill(Δt, 1, T)
-        elseif Δt isa AbstractVector
-            Δt = reshape(Δt, 1, :)
-        else
-            @assert size(Δt) == (1, T) "Δt must be a Real, AbstractVector, or 1x$(T) AbstractMatrix"
-        end
-        timestep = timestep_name
+    if Δt isa Real
+        timestep_data = fill(Δt, 1, T)
+    elseif Δt isa AbstractVector
+        timestep_data = reshape(Δt, 1, :)
     else
-        @assert Δt isa Real "Δt must be a Real if free_time is false"
-        timestep = Δt
+        timestep_data = Δt
+        @assert size(Δt) == (1, T) "Δt must be a Real, AbstractVector, or 1x$(T) AbstractMatrix"
     end
+    timestep = timestep_name
 
     # Constraints
     initial = (;
@@ -305,6 +300,8 @@ function initialize_trajectory(
     # Bounds
     bounds = control_bounds
 
+    bounds = merge(bounds, (; timestep_name => Δt_bounds,))
+
     # Put unit box bounds on the state if bound_state is true
     if bound_state
         state_dim = length(state_inits[1])
@@ -315,7 +312,7 @@ function initialize_trajectory(
     # Trajectory
     if isnothing(a_guess)
         # Randomly sample controls
-        a_values = initialize_control_trajectory(
+        control_data = initialize_control_trajectory(
             n_drives,
             n_control_derivatives,
             T,
@@ -324,30 +321,22 @@ function initialize_trajectory(
         )
     else
         # Use provided controls and take derivatives
-        a_values = initialize_control_trajectory(a_guess, Δt, n_control_derivatives)
+        control_data = initialize_control_trajectory(a_guess, Δt, n_control_derivatives)
     end
 
-    names = [state_names..., control_names...]
-    values = [state_data..., a_values...]
-
-    if free_time
-        push!(names, timestep_name)
-        push!(values, Δt)
-        controls = (control_names[end], timestep_name)
-        bounds = merge(bounds, (; timestep_name => Δt_bounds,))
-    else
-        controls = (control_names[end],)
-    end
+    names = [state_names..., control_names..., timestep_name]
+    values = [state_data..., control_data..., timestep_data]
+    controls = (control_names[end], timestep_name)
 
     return NamedTrajectory(
-        (; (names .=> values)...);
+        (; (names .=> values)...),
+        global_component_data;
         controls=controls,
         timestep=timestep,
         bounds=bounds,
         initial=initial,
         final=final,
         goal=goal,
-        global_data=global_data
     )
 end
 
