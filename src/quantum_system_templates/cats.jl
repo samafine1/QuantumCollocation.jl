@@ -62,3 +62,6 @@ function get_cat_controls(sys::AbstractQuantumSystem, α::Real, T::Int)
         fill(cat_kerr_correction, T)
     ], dims=1)
 end
+
+# *************************************************************************** #
+

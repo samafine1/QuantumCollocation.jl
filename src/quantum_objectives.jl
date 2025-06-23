@@ -5,14 +5,16 @@ export UnitaryInfidelityObjective
 export DensityMatrixPureStateInfidelityObjective
 export UnitarySensitivityObjective
 export UnitaryFreePhaseInfidelityObjective
+export LeakageObjective
 
 using LinearAlgebra
 using NamedTrajectories
 using PiccoloQuantumObjects
 using DirectTrajOpt
+using TestItems
 
 # --------------------------------------------------------- 
-#                        Kets
+#                       Kets
 # ---------------------------------------------------------
 
 function ket_fidelity_loss(
@@ -35,7 +37,7 @@ end
 
 
 # ---------------------------------------------------------
-#                        Unitaries
+#                       Unitaries
 # ---------------------------------------------------------
 
 function unitary_fidelity_loss(
@@ -94,7 +96,7 @@ function UnitaryFreePhaseInfidelityObjective(
 end
 
 # ---------------------------------------------------------
-#                        Density Matrices
+#                       Density Matrices
 # ---------------------------------------------------------
 
 function density_matrix_pure_state_infidelity_loss(
@@ -117,7 +119,7 @@ function DensityMatrixPureStateInfidelityObjective(
 end
 
 # ---------------------------------------------------------
-#                        Sensitivity
+#                       Sensitivity
 # ---------------------------------------------------------
 
 function unitary_fidelity_loss(
@@ -143,6 +145,34 @@ function UnitarySensitivityObjective(
         traj;
         Qs=Qs,
         times=times
+    )
+end
+
+# ---------------------------------------------------------
+#                       Leakage
+# ---------------------------------------------------------
+
+"""
+    LeakageObjective(indices, name, traj::NamedTrajectory)
+
+Construct a `KnotPointObjective` that penalizes leakage of `name` at the knot points specified by `times` at any `indices` that are outside the computational subspace.
+
+"""
+function LeakageObjective(
+    indices::AbstractVector{Int},
+    name::Symbol,
+    traj::NamedTrajectory;
+    times=1:traj.T,
+    Qs::AbstractVector{<:Float64}=fill(1.0, length(times)),
+)
+    leakage_objective(x) = sum(abs2.(x[indices]))
+
+    return KnotPointObjective(
+        leakage_objective,
+        name,
+        traj;
+        Qs=Qs,
+        times=times,
     )
 end
 

@@ -106,8 +106,10 @@ function UnitarySamplingProblem(
             )
         end
 
-        traj = merge(trajs, merge_names=(; a=1, da=1, dda=1, Δt=1), free_time=true)
-    end    
+        traj = merge(
+            trajs, merge_names=(a=1, da=1, dda=1, Δt=1), timestep=timestep_name
+        )
+    end
 
     control_names = [
         name for name ∈ traj.names
@@ -164,7 +166,7 @@ end
 # *************************************************************************** #
 
 @testitem "Sample robustness test" begin
-    using PiccoloQuantumObjects 
+    using PiccoloQuantumObjects
 
     T = 50
     Δt = 0.2

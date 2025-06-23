@@ -73,7 +73,7 @@ function QuantumStateSamplingProblem(
             )
         end
 
-        traj = merge(trajs, merge_names=(; a=1, da=1, dda=1, Δt=1), free_time=true)
+        traj = merge(trajs, merge_names=(a=1, da=1, dda=1, Δt=1), timestep=timestep_name)
     end
 
     control_names = [

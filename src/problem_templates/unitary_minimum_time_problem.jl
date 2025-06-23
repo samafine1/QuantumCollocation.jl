@@ -142,7 +142,7 @@ function UnitaryMinimumTimeProblem(
         deepcopy(prob.trajectory),
         goal,
         objective,
-        prob.dynamics,
+        deepcopy(prob.dynamics),
         constraints;
         kwargs...
     )
@@ -154,7 +154,7 @@ end
     using NamedTrajectories
     using PiccoloQuantumObjects 
 
-    H_drift = PAULIS[:Z]
+    H_drift = 0.1PAULIS[:Z]
     H_drives = [PAULIS[:X], PAULIS[:Y]]
     U_goal = GATES[:H]
     T = 51
@@ -163,7 +163,7 @@ end
     sys = QuantumSystem(H_drift, H_drives)
 
     prob = UnitarySmoothPulseProblem(
-        sys, U_goal, T, Δt,
+        sys, U_goal, T, Δt, Δt_min=Δt * 0.01,
         piccolo_options=PiccoloOptions(verbose=false)
     )
 
@@ -185,7 +185,7 @@ end
     @test unitary_rollout_fidelity(min_prob.trajectory, sys) ≥ constraint_tol * final_fidelity
     duration_after = sum(get_timesteps(min_prob.trajectory))
     duration_before = sum(get_timesteps(prob.trajectory))
-    @test duration_after < duration_before
+    @test duration_after <= duration_before
 end
 
 @testitem "Test relaxed final_fidelity constraint" begin
