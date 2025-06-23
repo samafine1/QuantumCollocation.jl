@@ -81,8 +81,8 @@ function UnitaryVariationalProblem(
     da_bounds::Vector{Float64}=fill(da_bound, system.n_drives),
     dda_bound::Float64=1.0,
     dda_bounds::Vector{Float64}=fill(dda_bound, system.n_drives),
-    Δt_min::Float64=Δt isa Float64 ? 0.5 * Δt : 0.5 * mean(Δt),
-    Δt_max::Float64=Δt isa Float64 ? 1.5 * Δt : 1.5 * mean(Δt),
+    Δt_min::Float64=0.5 * minimum(Δt),
+    Δt_max::Float64=2.0 * maximum(Δt),
     Q::Float64=100.0,
     Q_s::Float64=1e-2,
     Q_r::Float64=100.0,
@@ -180,9 +180,12 @@ function UnitaryVariationalProblem(
     end
     
     # Optional Piccolo constraints and objectives
-    apply_piccolo_options!(
-        J, constraints, piccolo_options, traj, state_name, timestep_name;
-        state_leakage_indices=goal isa EmbeddedOperator ? get_leakage_indices(goal) : nothing
+    J += apply_piccolo_options!(
+        piccolo_options, constraints, traj;
+        state_names=state_name,
+        state_leakage_indices=goal isa EmbeddedOperator ? 
+            get_iso_vec_leakage_indices(goal) :
+            nothing
     )
 
     integrators = [

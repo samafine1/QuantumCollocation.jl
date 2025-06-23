@@ -19,7 +19,7 @@ Options for the Piccolo quantum optimal control library.
 - `complex_control_norm_constraint_radius::Float64 = 1.0`: Radius of the complex control norm constraint.
 - `bound_state::Bool = false`: Bound the state.
 - `leakage_suppression::Bool = false`: Suppress leakage.
-- `R_leakage::Float64 = 1.0`: Leakage suppression parameter.
+- `leakage_cost::Float64 = 1.0`: Leakage suppression parameter.
 """
 @kwdef mutable struct PiccoloOptions
     verbose::Bool = true
@@ -30,9 +30,9 @@ Options for the Piccolo quantum optimal control library.
     complex_control_norm_constraint_name::Union{Nothing, Symbol} = nothing
     complex_control_norm_constraint_radius::Float64 = 1.0
     bound_state::Bool = false
-    leakage_suppression::Bool = false
-    state_leakage_indices::AbstractVector{Int} = Int[]
-    R_leakage::Float64 = 1.0
+    leakage_constraint::Bool = false
+    leakage_constraint_value::Float64 = 1e-2
+    leakage_cost::Float64 = 1e-2
 end
 
 end

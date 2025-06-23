@@ -94,8 +94,8 @@ function LeakageConstraint(
     traj::NamedTrajectory;
     times=1:traj.T,
 )
-    leakage_constraint(x) = [sum(abs2.(x[indices])) - value]
-
+    leakage_constraint(x) = abs2.(x[indices]) .- value
+    
     return NonlinearKnotPointConstraint(
         leakage_constraint,
         name,

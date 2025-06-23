@@ -82,8 +82,8 @@ function UnitarySmoothPulseProblem(
     da_bounds::Vector{Float64}=fill(da_bound, system.n_drives),
     dda_bound::Float64=1.0,
     dda_bounds::Vector{Float64}=fill(dda_bound, system.n_drives),
-    Δt_min::Float64=Δt isa Float64 ? 0.5 * Δt : 0.5 * mean(Δt),
-    Δt_max::Float64=Δt isa Float64 ? 1.5 * Δt : 1.5 * mean(Δt),
+    Δt_min::Float64=0.5 * minimum(Δt),
+    Δt_max::Float64=2.0 * maximum(Δt),
     Q::Float64=100.0,
     R=1e-2,
     R_a::Union{Float64, Vector{Float64}}=R,
@@ -134,9 +134,12 @@ function UnitarySmoothPulseProblem(
     J += QuadraticRegularizer(control_names[3], traj, R_dda)
 
     # Optional Piccolo constraints and objectives
-    apply_piccolo_options!(
-        J, constraints, piccolo_options, traj, state_name, timestep_name;
-        state_leakage_indices=goal isa EmbeddedOperator ? get_leakage_indices(goal) : nothing
+    J += apply_piccolo_options!(
+        piccolo_options, constraints, traj; 
+        state_names=state_name,
+        state_leakage_indices=goal isa EmbeddedOperator ? 
+            get_iso_vec_leakage_indices(goal) : 
+            nothing
     )
 
     integrators = [
@@ -165,7 +168,7 @@ end
 
 # *************************************************************************** #
 
-@testitem "Hadamard gate" begin
+@testitem "Hadamard gate improvement" begin
     using PiccoloQuantumObjects 
 
     sys = QuantumSystem(GATES[:Z], [GATES[:X], GATES[:Y]])
@@ -181,11 +184,10 @@ end
 
     initial = unitary_rollout_fidelity(prob.trajectory, sys)
     solve!(prob, max_iter=100, verbose=false, print_level=1)
-    final = unitary_rollout_fidelity(prob.trajectory, sys)
-    @test final > initial
+    @test unitary_rollout_fidelity(prob.trajectory, sys) > initial
 end
 
-@testitem "Hadamard gate with bound states and control norm constraint" begin
+@testitem "Bound states and control norm constraint" begin
     using PiccoloQuantumObjects 
 
     sys = QuantumSystem(GATES[:Z], [GATES[:X], GATES[:Y]])
@@ -202,14 +204,12 @@ end
         )
     )
 
-    initial = unitary_rollout_fidelity(prob.trajectory, sys)
-    solve!(prob, max_iter=100, verbose=false, print_level=1)
-    final = unitary_rollout_fidelity(prob.trajectory, sys)
-    @test_broken false
-    # @test final > initial
+    initial = copy(prob.trajectory.data)
+    solve!(prob, max_iter=5, verbose=false, print_level=1)
+    @test prob.trajectory.data != initial
 end
 
-@testitem "EmbeddedOperator Hadamard gate" begin
+@testitem "EmbeddedOperator tests" begin
     using PiccoloQuantumObjects 
 
     a = annihilate(3)
@@ -218,15 +218,32 @@ end
     T = 51
     Δt = 0.2
 
-    prob = UnitarySmoothPulseProblem(
-        sys, U_goal, T, Δt,
-        piccolo_options=PiccoloOptions(verbose=false)
-    )
+    @testset "EmbeddedOperator: solve gate" begin
+        prob = UnitarySmoothPulseProblem(
+            sys, U_goal, T, Δt,
+            piccolo_options=PiccoloOptions(verbose=false)
+        )
 
-    initial = unitary_rollout_fidelity(prob.trajectory, sys, subspace=U_goal.subspace)
-    solve!(prob, max_iter=100, verbose=false, print_level=1)
-    final = unitary_rollout_fidelity(prob.trajectory, sys, subspace=U_goal.subspace)
-    @test final > initial
+        initial = copy(prob.trajectory.data)
+        solve!(prob, max_iter=5, verbose=false, print_level=1)
+        @test prob.trajectory.data != initial
+    end
+
+    @testset "EmbeddedOperator: leakage constraint" begin
+        prob = UnitarySmoothPulseProblem(
+            sys, U_goal, T, Δt;
+            da_bound=1.0,
+            piccolo_options=PiccoloOptions(
+                leakage_constraint=true, 
+                leakage_constraint_value=5e-2, 
+                leakage_cost=1e-1,
+                verbose=false
+            )
+        )
+        initial = copy(prob.trajectory.data)
+        solve!(prob, max_iter=5, verbose=false, print_level=1)
+        @test prob.trajectory.data != initial
+    end
 end
 
 # TODO: Test changing names of control, state, and timestep

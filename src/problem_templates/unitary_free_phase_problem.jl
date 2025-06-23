@@ -13,7 +13,7 @@ function UnitaryFreePhaseProblem(
     system::AbstractQuantumSystem,
     goal::Function,
     T::Int,
-    Δt::Union{Float64, <:AbstractVector{Float64}};
+    Δt::Union{Float64, AbstractVector{Float64}};
     unitary_integrator=UnitaryIntegrator,
     state_name::Symbol = :Ũ⃗,
     control_name::Symbol = :a,
@@ -28,8 +28,8 @@ function UnitaryFreePhaseProblem(
     da_bounds::Vector{Float64}=fill(da_bound, system.n_drives),
     dda_bound::Float64=1.0,
     dda_bounds::Vector{Float64}=fill(dda_bound, system.n_drives),
-    Δt_min::Float64=Δt isa Float64 ? 0.5 * Δt : 0.5 * mean(Δt),
-    Δt_max::Float64=Δt isa Float64 ? 1.5 * Δt : 1.5 * mean(Δt),
+    Δt_min::Float64=0.5 * minimum(Δt),
+    Δt_max::Float64=2.0 * maximum(Δt),
     Q::Float64=100.0,
     R=1e-2,
     R_a::Union{Float64, Vector{Float64}}=R,
@@ -103,9 +103,12 @@ function UnitaryFreePhaseProblem(
     J += QuadraticRegularizer(control_names[3], traj, R_dda)
 
     # Optional Piccolo constraints and objectives
-    ProblemTemplates.apply_piccolo_options!(
-        J, constraints, piccolo_options, traj, state_name, timestep_name;
-        state_leakage_indices=eval_goal isa EmbeddedOperator ? get_leakage_indices(eval_goal) : nothing
+    J += apply_piccolo_options!(
+        piccolo_options, constraints, traj;
+        state_names=state_name,
+        state_leakage_indices=eval_goal isa EmbeddedOperator ? 
+            get_iso_vec_leakage_indices(eval_goal) :
+            nothing
     )
     
     # Phase constraint

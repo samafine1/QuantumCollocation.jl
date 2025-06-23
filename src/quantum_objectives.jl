@@ -165,7 +165,7 @@ function LeakageObjective(
     times=1:traj.T,
     Qs::AbstractVector{<:Float64}=fill(1.0, length(times)),
 )
-    leakage_objective(x) = sum(abs2.(x[indices]))
+    leakage_objective(x) = sum(abs2, x[indices]) / length(indices)
 
     return KnotPointObjective(
         leakage_objective,

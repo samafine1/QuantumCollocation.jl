@@ -61,8 +61,8 @@ function UnitarySamplingProblem(
     da_bounds::Vector{Float64}=fill(da_bound, systems[1].n_drives),
     dda_bound::Float64=1.0,
     dda_bounds::Vector{Float64}=fill(dda_bound, systems[1].n_drives),
-    Δt_min::Float64=0.5 * Δt,
-    Δt_max::Float64=1.5 * Δt,
+    Δt_min::Float64=0.5 * minimum(Δt),
+    Δt_max::Float64=2.0 * maximum(Δt),
     Q::Float64=100.0,
     R=1e-2,
     R_a::Union{Float64,Vector{Float64}}=R,
@@ -126,9 +126,12 @@ function UnitarySamplingProblem(
     end
 
     # Optional Piccolo constraints and objectives
-    apply_piccolo_options!(
-        J, constraints, piccolo_options, traj, state_names, timestep_name;
-        state_leakage_indices=all(op -> op isa EmbeddedOperator, operators) ? get_leakage_indices.(operators) : nothing
+    J += apply_piccolo_options!(
+        piccolo_options, constraints, traj;
+        state_names=state_names,
+        state_leakage_indices=all(op -> op isa EmbeddedOperator, operators) ?       
+            get_iso_vec_leakage_indices.(operators) : 
+            nothing
     )
 
     # Integrators

@@ -69,13 +69,14 @@ function QuantumStateSmoothPulseProblem(
     da_bounds::Vector{Float64}=fill(da_bound, sys.n_drives),
     dda_bound::Float64=1.0,
     dda_bounds::Vector{Float64}=fill(dda_bound, sys.n_drives),
-    Δt_min::Float64=0.001 * Δt,
-    Δt_max::Float64=2.0 * Δt,
+    Δt_min::Float64=0.5 * minimum(Δt),
+    Δt_max::Float64=2.0 * maximum(Δt),
     Q::Float64=100.0,
     R=1e-2,
     R_a::Union{Float64, Vector{Float64}}=R,
     R_da::Union{Float64, Vector{Float64}}=R,
     R_dda::Union{Float64, Vector{Float64}}=R,
+    state_leakage_indices::Union{Nothing, AbstractVector{Int}}=nothing,
     constraints::Vector{<:AbstractConstraint}=AbstractConstraint[],
     piccolo_options::PiccoloOptions=PiccoloOptions(),
 )
@@ -131,9 +132,10 @@ function QuantumStateSmoothPulseProblem(
     end
 
     # Optional Piccolo constraints and objectives
-    apply_piccolo_options!(
-        J, constraints, piccolo_options, traj, state_name, timestep_name;
-        state_leakage_indices=piccolo_options.state_leakage_indices
+    J += apply_piccolo_options!(
+        piccolo_options, constraints, traj;
+        state_names=state_names,
+        state_leakage_indices= isnothing(state_leakage_indices) ? nothing : fill(state_leakage_indices, length(state_names))
     )
 
     state_names = [
