@@ -4,6 +4,8 @@ export KetInfidelityObjective
 export UnitaryInfidelityObjective
 export DensityMatrixPureStateInfidelityObjective
 export UnitarySensitivityObjective
+export UnitaryFreePhaseInfidelityObjective
+export LeakageObjective
 
 using LinearAlgebra
 using NamedTrajectories
@@ -12,7 +14,7 @@ using DirectTrajOpt
 using TestItems
 
 # --------------------------------------------------------- 
-#                        Kets
+#                       Kets
 # ---------------------------------------------------------
 
 function ket_fidelity_loss(
@@ -35,12 +37,12 @@ end
 
 
 # ---------------------------------------------------------
-#                        Unitaries
+#                       Unitaries
 # ---------------------------------------------------------
 
 function unitary_fidelity_loss(
     Ũ⃗::AbstractVector{<:Real},
-    U_goal::AbstractMatrix{<:Complex{Float64}}
+    U_goal::AbstractMatrix{<:Complex{<:Real}}
 )
     U = iso_vec_to_operator(Ũ⃗)
     n = size(U, 1)
@@ -68,40 +70,33 @@ function UnitaryInfidelityObjective(
     return TerminalObjective(ℓ, Ũ⃗_name, traj; Q=Q)
 end
 
-# ---------------------------------------------------------
-#                Leakage Suppression Objective
-# ---------------------------------------------------------
+function UnitaryFreePhaseInfidelityObjective(
+    U_goal::Function,
+    Ũ⃗_name::Symbol,
+    θ_names::AbstractVector{Symbol},
+    traj::NamedTrajectory;
+    Q=100.0
+)
+    d = sum(traj.global_dims[n] for n in θ_names)
+    function ℓ(z)
+        Ũ⃗, θ = z[1:end-d], z[end-d+1:end]
+        return abs(1 - QuantumObjectives.unitary_fidelity_loss(Ũ⃗, U_goal(θ)))
+    end
+    return TerminalObjective(ℓ, Ũ⃗_name, θ_names, traj; Q=Q)
+end
 
-"""
-        LeakageSuppressionObjective(leakage_inds::AbstractVector{<:Integer}, name::Symbol, traj::NamedTrajectory; kwargs...)
-
-Construct a `KnotPointObjective` that penalizes leakage outside the computational subspace.
-
-- `leakage_inds`: Vector of indices specifying the leakage subspace in the isomorphic vector representation (e.g., `get_iso_vec_leakage_indices`).
-- `name`: The variable name in the trajectory (e.g., `:u`).
-- `traj`: The `NamedTrajectory` containing the variable.
-- `kwargs...`: Passed to `KnotPointObjective`.
-
-The objective is: 
-    sum_{i ∈ I_leakage} abs(U[i])
-where `I_leakage` is given by `leakage_inds` and `U` is the vectorized variable.
-"""
-function LeakageSuppressionObjective(
-    leakage_inds::AbstractVector{<:Integer},
-    name::Symbol,
+function UnitaryFreePhaseInfidelityObjective(
+    U_goal::Function,
+    Ũ⃗_name::Symbol,
+    θ_name::Symbol,
     traj::NamedTrajectory;
     kwargs...
 )
-    return KnotPointObjective(
-        (U, args...) -> sum(abs(U[i]) for i in leakage_inds),
-        name,
-        traj;
-        kwargs...
-    )
+    return UnitaryFreePhaseInfidelityObjective(U_goal, Ũ⃗_name, [θ_name], traj; kwargs...)
 end
 
 # ---------------------------------------------------------
-#                        Density Matrices
+#                       Density Matrices
 # ---------------------------------------------------------
 
 function density_matrix_pure_state_infidelity_loss(
@@ -124,7 +119,7 @@ function DensityMatrixPureStateInfidelityObjective(
 end
 
 # ---------------------------------------------------------
-#                        Sensitivity
+#                       Sensitivity
 # ---------------------------------------------------------
 
 function unitary_fidelity_loss(
@@ -153,22 +148,33 @@ function UnitarySensitivityObjective(
     )
 end
 
-@testitem "LeakageSuppressionObjective basic functionality" begin
-    using PiccoloQuantumObjects
-    using NamedTrajectories
-    
-    # U with zeros everywhere (no leakage)
-    U = zeros(3,3)
-    traj = NamedTrajectory((; u = reshape(U, 9, 1)); controls=:u, timestep=1.0)
-    leakage_inds = [4, 8]
-    obj = QuantumObjectives.LeakageSuppressionObjective(leakage_inds, :u, traj)
-    @test obj.L(traj.datavec) == 0.0
+# ---------------------------------------------------------
+#                       Leakage
+# ---------------------------------------------------------
 
-    # U with leakage at (1,2) and (2,3)
-    U[1,2] = 2.0
-    U[2,3] = 3.0
-    traj = NamedTrajectory((; u = reshape(U, 9, 1)); controls=:u, timestep=1.0)
-    @test obj.L(traj.datavec) ≈ 2.0 + 3.0
+"""
+    LeakageObjective(indices, name, traj::NamedTrajectory)
+
+Construct a `KnotPointObjective` that penalizes leakage of `name` at the knot points specified by `times` at any `indices` that are outside the computational subspace.
+
+"""
+function LeakageObjective(
+    indices::AbstractVector{Int},
+    name::Symbol,
+    traj::NamedTrajectory;
+    times=1:traj.T,
+    Qs::AbstractVector{<:Float64}=fill(1.0, length(times)),
+)
+    leakage_objective(x) = sum(abs2, x[indices]) / length(indices)
+
+    return KnotPointObjective(
+        leakage_objective,
+        name,
+        traj;
+        Qs=Qs,
+        times=times,
+    )
 end
+
 
 end

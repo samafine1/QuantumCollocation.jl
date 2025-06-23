@@ -1,6 +1,7 @@
 export TransmonSystem
 export TransmonDipoleCoupling
 export MultiTransmonSystem
+export QuantumSystemCoupling
 
 @doc raw"""
     TransmonSystem(;
@@ -102,6 +103,15 @@ function TransmonSystem(;
     )
 end
 
+struct QuantumSystemCoupling
+    op
+    g_ij
+    pair
+    subsystem_levels
+    coupling_type
+    params
+end
+
 @doc raw"""
     TransmonDipoleCoupling(
         g_ij::Float64,
@@ -133,25 +143,6 @@ where `a_i` is the annihilation operator for the `i`th transmon.
 
 """
 function TransmonDipoleCoupling end
-
-# TODO: this function is already difined in PiccoloQuantumObjects.jl so should be used from there, but it is not in a module
-function lift_operator(operator::AbstractMatrix{T}, i::Int, subsystem_levels::AbstractVector{Int}) where T <: Number
-    @assert size(operator, 1) == subsystem_levels[i] "Operator must match subsystem level."
-    Is = [Matrix{T}(I(l)) for l ∈ subsystem_levels]
-    Is[i] = operator
-    return reduce(kron, Is)
-end
-
-struct QuantumSystemCoupling
-    op
-    g_ij
-    pair
-    subsystem_levels
-    coupling_type
-    params
-end
-
-export QuantumSystemCoupling
 
 function TransmonDipoleCoupling(
     g_ij::Float64,
@@ -193,7 +184,7 @@ end
 function TransmonDipoleCoupling(
     g_ij::Float64,
     pair::Tuple{Int, Int},
-    sub_systems::Vector{QuantumSystem};
+    sub_systems::AbstractVector{<:AbstractQuantumSystem};
     kwargs...
 )
     subsystem_levels = [sys.levels for sys ∈ sub_systems]
@@ -263,11 +254,12 @@ function MultiTransmonSystem(
     return CompositeQuantumSystem(H_drift, systems)
 end
 
+# *************************************************************************** #
 
 @testitem "TransmonSystem: default and custom parameters" begin
     using PiccoloQuantumObjects
     sys = TransmonSystem()
-    @test typeof(sys) == QuantumSystem
+    @test sys isa QuantumSystem
     @test haskey(sys.params, :ω)
     @test haskey(sys.params, :δ)
     @test sys.params[:levels] == 3
@@ -285,9 +277,9 @@ end
     sys_duffing = TransmonSystem(lab_frame=true, lab_frame_type=:duffing)
     sys_quartic = TransmonSystem(lab_frame=true, lab_frame_type=:quartic)
     sys_cosine = TransmonSystem(lab_frame=true, lab_frame_type=:cosine)
-    @test typeof(sys_duffing) == QuantumSystem
-    @test typeof(sys_quartic) == QuantumSystem
-    @test typeof(sys_cosine) == QuantumSystem
+    @test sys_duffing isa QuantumSystem
+    @test sys_quartic isa QuantumSystem
+    @test sys_cosine isa QuantumSystem
 end
 
 @testitem "TransmonSystem: error on invalid lab_frame_type" begin
@@ -295,19 +287,18 @@ end
 end
 
 @testitem "TransmonDipoleCoupling: both constructors and frames" begin
-    using PiccoloQuantumObjects
     levels = [3, 3]
     g = 0.01
   
-    c1 = TransmonDipoleCoupling(g, (1,2), levels, lab_frame=false)
-    c2 = TransmonDipoleCoupling(g, (1,2), levels, lab_frame=true)
-    @test typeof(c1) == QuantumSystemCoupling
-    @test typeof(c2) == QuantumSystemCoupling
+    c1 = TransmonDipoleCoupling(g, (1, 2), levels, lab_frame=false)
+    c2 = TransmonDipoleCoupling(g, (1, 2), levels, lab_frame=true)
+    @test c1 isa QuantumSystemCoupling
+    @test c2 isa QuantumSystemCoupling
 
     sys1 = TransmonSystem(levels=3)
     sys2 = TransmonSystem(levels=3)
-    c3 = TransmonDipoleCoupling(g, (1,2), [sys1, sys2], lab_frame=false)
-    @test typeof(c3) == QuantumSystemCoupling
+    c3 = TransmonDipoleCoupling(g, (1, 2), [sys1, sys2], lab_frame=false)
+    @test c3 isa QuantumSystemCoupling
 end
 
 @testitem "MultiTransmonSystem: minimal and custom" begin
@@ -319,7 +310,7 @@ end
     gs = [0.0 0.01; 0.01 0.0]
 
     comp = MultiTransmonSystem(ωs, δs, gs)
-    @test typeof(comp) == CompositeQuantumSystem
+    @test comp isa CompositeQuantumSystem
     @test length(comp.subsystems) == 2
     @test !iszero(comp.H(zeros(comp.n_drives)))
 
@@ -330,7 +321,7 @@ end
         subsystems=[1],
         subsystem_drive_indices=[1]
     )
-    @test typeof(comp2) == CompositeQuantumSystem
+    @test comp2 isa CompositeQuantumSystem
     @test length(comp2.subsystems) == 1
     @test !isapprox(norm(comp2.H(zeros(comp2.n_drives))), 0.0; atol=1e-12)
 end
@@ -346,7 +337,7 @@ end
         subsystems=[1,3],
         subsystem_drive_indices=[3]
     )
-    @test typeof(comp) == CompositeQuantumSystem
+    @test comp isa CompositeQuantumSystem
     @test length(comp.subsystems) == 2
     # Only one drive
     @test comp.subsystems[1].params[:drives] == false

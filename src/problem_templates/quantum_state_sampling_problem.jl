@@ -10,7 +10,7 @@ function QuantumStateSamplingProblem(
     ψ_inits::AbstractVector{<:AbstractVector{<:AbstractVector{<:ComplexF64}}},
     ψ_goals::AbstractVector{<:AbstractVector{<:AbstractVector{<:ComplexF64}}},
     T::Int,
-    Δt::Union{Float64,Vector{Float64}};
+    Δt::Union{Float64, AbstractVector{Float64}};
     ket_integrator=KetIntegrator,
     system_weights=fill(1.0, length(systems)),
     init_trajectory::Union{NamedTrajectory,Nothing}=nothing,
@@ -24,13 +24,14 @@ function QuantumStateSamplingProblem(
     da_bounds::Vector{Float64}=fill(da_bound, systems[1].n_drives),
     dda_bound::Float64=1.0,
     dda_bounds::Vector{Float64}=fill(dda_bound, systems[1].n_drives),
-    Δt_min::Float64=0.5 * Δt,
-    Δt_max::Float64=1.5 * Δt,
+    Δt_min::Float64=0.5 * minimum(Δt),
+    Δt_max::Float64=2.0 * maximum(Δt),
     Q::Float64=100.0,
     R=1e-2,
     R_a::Union{Float64,Vector{Float64}}=R,
     R_da::Union{Float64,Vector{Float64}}=R,
     R_dda::Union{Float64,Vector{Float64}}=R,
+    state_leakage_indices::Union{Nothing, AbstractVector{Int}}=nothing,
     constraints::Vector{<:AbstractConstraint}=AbstractConstraint[],
     piccolo_options::PiccoloOptions=PiccoloOptions(),
 )
@@ -73,7 +74,7 @@ function QuantumStateSamplingProblem(
             )
         end
 
-        traj = merge(trajs, merge_names=(; a=1, da=1, dda=1, Δt=1), free_time=true)
+        traj = merge(trajs, merge_names=(a=1, da=1, dda=1, Δt=1), timestep=timestep_name)
     end
 
     control_names = [
@@ -93,9 +94,10 @@ function QuantumStateSamplingProblem(
     end
 
     # Optional Piccolo constraints and objectives
-    apply_piccolo_options!(
-        J, constraints, piccolo_options, traj, state_name, timestep_name;
-        state_leakage_indices=piccolo_options.state_leakage_indices
+    J += apply_piccolo_options!(
+        piccolo_options, constraints, traj;
+        state_names=vcat(state_names...),
+        state_leakage_indices=isnothing(state_leakage_indices) ? nothing : fill(state_leakage_indices, length(vcat(state_names...))),
     )
 
     # Integrators

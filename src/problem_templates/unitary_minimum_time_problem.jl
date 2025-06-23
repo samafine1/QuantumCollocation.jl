@@ -53,9 +53,7 @@ function UnitaryMinimumTimeProblem(
         println("\tfinal fidelity: $(final_fidelity)")
     end
 
-    objective += MinimumTimeObjective(
-        trajectory; D=D, timesteps_all_equal=piccolo_options.timesteps_all_equal
-    )
+    objective += MinimumTimeObjective(trajectory, D=D)
 
     fidelity_constraint = FinalUnitaryFidelityConstraint(
         goal, unitary_name, final_fidelity, trajectory
@@ -77,7 +75,66 @@ end
 function UnitaryMinimumTimeProblem(
     prob::DirectTrajOptProblem,
     goal::AbstractPiccoloOperator;
-    objective::Objective=deepcopy(prob.objective),
+    objective::Objective=prob.objective,
+    constraints::AbstractVector{<:AbstractConstraint}=deepcopy(prob.constraints),
+    kwargs...
+)
+    return UnitaryMinimumTimeProblem(
+        deepcopy(prob.trajectory),
+        goal,
+        objective,
+        prob.dynamics,
+        constraints;
+        kwargs...
+    )
+end
+
+# --------------------------------------------------------------------------- #
+# Free phases
+# --------------------------------------------------------------------------- #
+
+function UnitaryMinimumTimeProblem(
+    trajectory::NamedTrajectory,
+    goal::Function,
+    objective::Objective,
+    dynamics::TrajectoryDynamics,
+    constraints::AbstractVector{<:AbstractConstraint};
+    unitary_name::Symbol=:Ũ⃗,
+    phase_name::Symbol=:θ,
+    final_fidelity::Float64=1.0,
+    D::Float64=100.0,
+    piccolo_options::PiccoloOptions=PiccoloOptions(),
+)
+    # Collect phase names
+    phase_names = [n for n in trajectory.global_names if endswith(string(n), string(phase_name))]
+
+    if piccolo_options.verbose
+        println("    constructing UnitaryMinimumTimeProblem...")
+        println("\tfinal fidelity: $(final_fidelity)")
+        println("\tphase names: $(phase_names)")
+    end
+
+    objective += MinimumTimeObjective(trajectory, D=D)
+    # timesteps_all_equal=piccolo_options.timesteps_all_equal
+
+    fidelity_constraint = FinalUnitaryFidelityConstraint(
+        goal, unitary_name, phase_names, final_fidelity, trajectory
+    )
+
+    constraints = push!(constraints, fidelity_constraint)
+
+    return DirectTrajOptProblem(
+        trajectory,
+        objective,
+        dynamics,
+        constraints
+    )
+end
+
+function UnitaryMinimumTimeProblem(
+    prob::DirectTrajOptProblem,
+    goal::Function;
+    objective::Objective=prob.objective,
     constraints::AbstractVector{<:AbstractConstraint}=deepcopy(prob.constraints),
     kwargs...
 )
