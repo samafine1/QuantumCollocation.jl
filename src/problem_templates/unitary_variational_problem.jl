@@ -33,11 +33,11 @@ Constructs a unitary variational problem for optimizing quantum control trajecto
 - `timestep_name::Symbol`: The name of the timestep variable (default: `:Δt`).
 - `init_trajectory::Union{NamedTrajectory, Nothing}`: An optional initial trajectory to start optimization.
 - `a_bound::Float64`: The bound for the control variable `a` (default: `1.0`).
-- `a_bounds::Vector`: Bounds for each control variable (default: filled with `a_bound`).
+- `a_bounds`: Bounds for each control variable (default: filled with `a_bound`).
 - `da_bound::Float64`: The bound for the derivative of the control variable (default: `Inf`).
-- `da_bounds::Vector`: Bounds for each derivative of the control variable.
+- `da_bounds`: Bounds for each derivative of the control variable.
 - `dda_bound::Float64`: The bound for the second derivative of the control variable (default: `1.0`).
-- `dda_bounds::Vector`: Bounds for each second derivative of the control variable.
+- `dda_bounds`: Bounds for each second derivative of the control variable.
 - `Δt_min::Float64`: Minimum allowed timestep duration.
 - `Δt_max::Float64`: Maximum allowed timestep duration.
 - `Q::Float64`: Weight for the unitary infidelity objective (default: `100.0`).
@@ -78,9 +78,9 @@ function UnitaryVariationalProblem(
     a_bound::Float64=1.0,
     a_bounds=fill(a_bound, system.n_drives),
     da_bound::Float64=Inf,
-    da_bounds::Vector{Float64}=fill(da_bound, system.n_drives),
+    da_bounds=fill(da_bound, system.n_drives),
     dda_bound::Float64=1.0,
-    dda_bounds::Vector{Float64}=fill(dda_bound, system.n_drives),
+    dda_bounds=fill(dda_bound, system.n_drives),
     Δt_min::Float64=0.5 * minimum(Δt),
     Δt_max::Float64=2.0 * maximum(Δt),
     Q::Float64=100.0,
