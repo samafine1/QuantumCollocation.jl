@@ -85,13 +85,7 @@ function UnitaryFreePhaseProblem(
     end
 
     # Objective
-    J = UnitaryFreePhaseInfidelityObjective(
-        goal, 
-        state_name, 
-        phase_names,
-        traj;
-        Q=Q
-    )
+    J = UnitaryFreePhaseInfidelityObjective(goal,  state_name,  phase_names, traj; Q=Q)
 
     control_names = [
         name for name ∈ traj.names
