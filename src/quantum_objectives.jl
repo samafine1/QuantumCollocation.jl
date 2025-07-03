@@ -4,6 +4,7 @@ export KetInfidelityObjective
 export UnitaryInfidelityObjective
 export DensityMatrixPureStateInfidelityObjective
 export UnitarySensitivityObjective
+export FirstOrderObjective
 export UnitaryFreePhaseInfidelityObjective
 export LeakageObjective
 
@@ -12,7 +13,7 @@ using NamedTrajectories
 using PiccoloQuantumObjects
 using DirectTrajOpt
 using TestItems
-
+using TrajectoryIndexingUtils
 # --------------------------------------------------------- 
 #                       Kets
 # ---------------------------------------------------------
@@ -138,6 +139,31 @@ function UnitarySensitivityObjective(
     scale::Float64=1.0,
 )
     ℓ = Ũ⃗ -> scale^4 * unitary_fidelity_loss(Ũ⃗)
+
+    return KnotPointObjective(
+        ℓ,
+        name,
+        traj;
+        Qs=Qs,
+        times=times
+    )
+end
+
+function FirstOrderObjective(
+    name::Symbol,
+    H_err::AbstractMatrix{<:Number},
+    traj::NamedTrajectory,
+    times::AbstractVector{Int};
+    Qs::AbstractVector{<:Float64}=fill(1.0, length(times)),
+)
+    
+    function ℓ(Z)
+        Ũ⃗s = Z[slice(k, traj.components.Ũ⃗, traj.dim) for k=1:traj.T]
+        Us = [iso_vec_to_operator(Ũ⃗) for Ũ⃗ in Ũ⃗s]
+        terms = [Ũ⃗' * H_err * U for U in Us]
+        sum_terms = sum(terms)
+        return real((conj(tr(sum_terms)) * tr(sum_terms))) / (traj.T^2 * (conj(H_err) * H_err))
+    end
 
     return KnotPointObjective(
         ℓ,
