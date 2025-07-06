@@ -25,12 +25,12 @@ robust solution by including multiple systems reflecting the problem uncertainty
 - `timestep_name::Symbol = :Δt`: The name of the timestep variable.
 - `constraints::Vector{<:AbstractConstraint} = AbstractConstraint[]`: The constraints.
 - `a_bound::Float64 = 1.0`: The bound for the control amplitudes.
-- `a_bounds::Vector{Float64} = fill(a_bound, length(systems[1].G_drives))`: The bounds for the control amplitudes.
+- `a_bounds = fill(a_bound, length(systems[1].G_drives))`: The bounds for the control amplitudes.
 - `a_guess::Union{Matrix{Float64}, Nothing} = nothing`: The initial guess for the control amplitudes.
 - `da_bound::Float64 = Inf`: The bound for the control first derivatives.
-- `da_bounds::Vector{Float64} = fill(da_bound, length(systems[1].G_drives))`: The bounds for the control first derivatives.
+- `da_bounds = fill(da_bound, length(systems[1].G_drives))`: The bounds for the control first derivatives.
 - `dda_bound::Float64 = 1.0`: The bound for the control second derivatives.
-- `dda_bounds::Vector{Float64} = fill(dda_bound, length(systems[1].G_drives))`: The bounds for the control second derivatives.
+- `dda_bounds = fill(dda_bound, length(systems[1].G_drives))`: The bounds for the control second derivatives.
 - `Δt_min::Float64 = 0.5 * Δt`: The minimum time step size.
 - `Δt_max::Float64 = 1.5 * Δt`: The maximum time step size.
 - `Q::Float64 = 100.0`: The fidelity weight.
@@ -58,9 +58,9 @@ function UnitarySamplingProblem(
     a_bounds=fill(a_bound, systems[1].n_drives),
     a_guess::Union{Matrix{Float64},Nothing}=nothing,
     da_bound::Float64=Inf,
-    da_bounds::Vector{Float64}=fill(da_bound, systems[1].n_drives),
+    da_bounds=fill(da_bound, systems[1].n_drives),
     dda_bound::Float64=1.0,
-    dda_bounds::Vector{Float64}=fill(dda_bound, systems[1].n_drives),
+    dda_bounds=fill(dda_bound, systems[1].n_drives),
     Δt_min::Float64=0.5 * minimum(Δt),
     Δt_max::Float64=2.0 * maximum(Δt),
     Q::Float64=100.0,

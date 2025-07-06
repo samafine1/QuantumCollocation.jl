@@ -48,11 +48,11 @@ with
 - `init_trajectory::Union{NamedTrajectory, Nothing}=nothing`: an initial trajectory to use
 - `a_guess::Union{Matrix{Float64}, Nothing}=nothing`: an initial guess for the control pulses
 - `a_bound::Float64=1.0`: the bound on the control pulse
-- `a_bounds::Vector{Float64}=fill(a_bound, length(system.G_drives))`: the bounds on the control pulses, one for each drive
+- `a_bounds=fill(a_bound, length(system.G_drives))`: the bounds on the control pulses, one for each drive
 - `da_bound::Float64=Inf`: the bound on the control pulse derivative
-- `da_bounds::Vector{Float64}=fill(da_bound, length(system.G_drives))`: the bounds on the control pulse derivatives, one for each drive
+- `da_bounds=fill(da_bound, length(system.G_drives))`: the bounds on the control pulse derivatives, one for each drive
 - `dda_bound::Float64=1.0`: the bound on the control pulse second derivative
-- `dda_bounds::Vector{Float64}=fill(dda_bound, length(system.G_drives))`: the bounds on the control pulse second derivatives, one for each drive
+- `dda_bounds=fill(dda_bound, length(system.G_drives))`: the bounds on the control pulse second derivatives, one for each drive
 - `Δt_min::Float64=Δt isa Float64 ? 0.5 * Δt : 0.5 * mean(Δt)`: the minimum time step size
 - `Δt_max::Float64=Δt isa Float64 ? 1.5 * Δt : 1.5 * mean(Δt)`: the maximum time step size
 - `Q::Float64=100.0`: the weight on the infidelity objective
@@ -79,9 +79,9 @@ function UnitarySmoothPulseProblem(
     a_bound::Float64=1.0,
     a_bounds=fill(a_bound, system.n_drives),
     da_bound::Float64=Inf,
-    da_bounds::Vector{Float64}=fill(da_bound, system.n_drives),
+    da_bounds=fill(da_bound, system.n_drives),
     dda_bound::Float64=1.0,
-    dda_bounds::Vector{Float64}=fill(dda_bound, system.n_drives),
+    dda_bounds=fill(dda_bound, system.n_drives),
     Δt_min::Float64=0.5 * minimum(Δt),
     Δt_max::Float64=2.0 * maximum(Δt),
     Q::Float64=100.0,
