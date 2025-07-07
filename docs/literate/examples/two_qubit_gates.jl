@@ -169,12 +169,12 @@ prob = UnitarySmoothPulseProblem(
     R_da=0.01,
     R_dda=0.01,
     Δt_max=Δt_max,
-    piccolo_options=piccolo_options
+    piccolo_options=PiccoloOptions()
 )
 fid_init = unitary_rollout_fidelity(prob.trajectory, sys)
 println(fid_init)
 
-solve!(prob; max_iter=1000)
+solve!(prob; max_iter=100)
 
 ## Let's take a look at the final fidelity
 fid_final = unitary_rollout_fidelity(prob.trajectory, sys)
@@ -189,10 +189,9 @@ plot_unitary_populations(prob.trajectory)
 # For fun, let's look at a minimum time pulse for this problem
 
 min_time_prob = UnitaryMinimumTimeProblem(prob, U_goal; final_fidelity=.999)
-
 solve!(min_time_prob; max_iter=300)
-
-unitary_rollout_fidelity(min_time_prob.trajectory, sys)
+fid_final_min_time = unitary_rollout_fidelity(min_time_prob.trajectory, sys)
+println(fid_final_min_time)
 
 # And let's plot this solution
 
