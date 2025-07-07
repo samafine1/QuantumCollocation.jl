@@ -14,8 +14,3 @@ Modules = [QuantumCollocation.Options]
 ```@autodocs
 Modules = [QuantumCollocation.TrajectoryInitialization]
 ```
-
-## Trajectory Interpolations
-```@autodocs
-Modules = [QuantumCollocation.TrajectoryInterpolations]
-```

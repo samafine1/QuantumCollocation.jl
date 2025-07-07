@@ -4,14 +4,17 @@ export KetInfidelityObjective
 export UnitaryInfidelityObjective
 export DensityMatrixPureStateInfidelityObjective
 export UnitarySensitivityObjective
+export UnitaryFreePhaseInfidelityObjective
+export LeakageObjective
 
 using LinearAlgebra
 using NamedTrajectories
 using PiccoloQuantumObjects
 using DirectTrajOpt
+using TestItems
 
 # --------------------------------------------------------- 
-#                        Kets
+#                       Kets
 # ---------------------------------------------------------
 
 function ket_fidelity_loss(
@@ -34,12 +37,12 @@ end
 
 
 # ---------------------------------------------------------
-#                        Unitaries
+#                       Unitaries
 # ---------------------------------------------------------
 
 function unitary_fidelity_loss(
     Ũ⃗::AbstractVector{<:Real},
-    U_goal::AbstractMatrix{<:Complex{Float64}}
+    U_goal::AbstractMatrix{<:Complex{<:Real}}
 )
     U = iso_vec_to_operator(Ũ⃗)
     n = size(U, 1)
@@ -67,8 +70,33 @@ function UnitaryInfidelityObjective(
     return TerminalObjective(ℓ, Ũ⃗_name, traj; Q=Q)
 end
 
+function UnitaryFreePhaseInfidelityObjective(
+    U_goal::Function,
+    Ũ⃗_name::Symbol,
+    θ_names::AbstractVector{Symbol},
+    traj::NamedTrajectory;
+    Q=100.0
+)
+    d = sum(traj.global_dims[n] for n in θ_names)
+    function ℓ(z)
+        Ũ⃗, θ = z[1:end-d], z[end-d+1:end]
+        return abs(1 - QuantumObjectives.unitary_fidelity_loss(Ũ⃗, U_goal(θ)))
+    end
+    return TerminalObjective(ℓ, Ũ⃗_name, θ_names, traj; Q=Q)
+end
+
+function UnitaryFreePhaseInfidelityObjective(
+    U_goal::Function,
+    Ũ⃗_name::Symbol,
+    θ_name::Symbol,
+    traj::NamedTrajectory;
+    kwargs...
+)
+    return UnitaryFreePhaseInfidelityObjective(U_goal, Ũ⃗_name, [θ_name], traj; kwargs...)
+end
+
 # ---------------------------------------------------------
-#                        Density Matrices
+#                       Density Matrices
 # ---------------------------------------------------------
 
 function density_matrix_pure_state_infidelity_loss(
@@ -91,7 +119,7 @@ function DensityMatrixPureStateInfidelityObjective(
 end
 
 # ---------------------------------------------------------
-#                        Sensitivity
+#                       Sensitivity
 # ---------------------------------------------------------
 
 function unitary_fidelity_loss(
@@ -117,6 +145,34 @@ function UnitarySensitivityObjective(
         traj;
         Qs=Qs,
         times=times
+    )
+end
+
+# ---------------------------------------------------------
+#                       Leakage
+# ---------------------------------------------------------
+
+"""
+    LeakageObjective(indices, name, traj::NamedTrajectory)
+
+Construct a `KnotPointObjective` that penalizes leakage of `name` at the knot points specified by `times` at any `indices` that are outside the computational subspace.
+
+"""
+function LeakageObjective(
+    indices::AbstractVector{Int},
+    name::Symbol,
+    traj::NamedTrajectory;
+    times=1:traj.T,
+    Qs::AbstractVector{<:Float64}=fill(1.0, length(times)),
+)
+    leakage_objective(x) = sum(abs2, x[indices]) / length(indices)
+
+    return KnotPointObjective(
+        leakage_objective,
+        name,
+        traj;
+        Qs=Qs,
+        times=times,
     )
 end
 

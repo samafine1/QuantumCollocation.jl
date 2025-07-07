@@ -35,9 +35,7 @@ function QuantumStateMinimumTimeProblem(
         println("\tfinal fidelity: $(final_fidelity)")
     end
 
-    objective += MinimumTimeObjective(
-        trajectory, D=D, timesteps_all_equal=piccolo_options.timesteps_all_equal
-    )
+    objective += MinimumTimeObjective(trajectory, D=D)
 
     for (state_name, ψ_goal) in zip(state_names, ψ_goals)
         fidelity_constraint = FinalKetFidelityConstraint(

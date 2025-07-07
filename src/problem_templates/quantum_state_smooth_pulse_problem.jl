@@ -1,6 +1,5 @@
 export QuantumStateSmoothPulseProblem
 
-
 """
     QuantumStateSmoothPulseProblem(system, ψ_inits, ψ_goals, T, Δt; kwargs...)
     QuantumStateSmoothPulseProblem(system, ψ_init, ψ_goal, T, Δt; kwargs...)
@@ -33,12 +32,12 @@ with
 - `timestep_name::Symbol=:Δt`: The name of the timestep variable.
 - `init_trajectory::Union{NamedTrajectory, Nothing}=nothing`: The initial trajectory.
 - `a_bound::Float64=1.0`: The bound on the control pulse.
-- `a_bounds::Vector{Float64}=fill(a_bound, length(system.G_drives))`: The bounds on the control pulse.
+- `a_bounds=fill(a_bound, length(system.G_drives))`: The bounds on the control pulse.
 - `a_guess::Union{Matrix{Float64}, Nothing}=nothing`: The initial guess for the control pulse.
 - `da_bound::Float64=Inf`: The bound on the first derivative of the control pulse.
-- `da_bounds::Vector{Float64}=fill(da_bound, length(system.G_drives))`: The bounds on the first derivative of the control pulse.
+- `da_bounds=fill(da_bound, length(system.G_drives))`: The bounds on the first derivative of the control pulse.
 - `dda_bound::Float64=1.0`: The bound on the second derivative of the control pulse.
-- `dda_bounds::Vector{Float64}=fill(dda_bound, length(system.G_drives))`: The bounds on the second derivative of the control pulse.
+- `dda_bounds=fill(dda_bound, length(system.G_drives))`: The bounds on the second derivative of the control pulse.
 - `Δt_min::Float64=0.5 * Δt`: The minimum timestep size.
 - `Δt_max::Float64=1.5 * Δt`: The maximum timestep size.
 - `drive_derivative_σ::Float64=0.01`: The standard deviation of the drive derivative random initialization.
@@ -64,19 +63,20 @@ function QuantumStateSmoothPulseProblem(
     timestep_name::Symbol=:Δt,
     init_trajectory::Union{NamedTrajectory, Nothing}=nothing,
     a_bound::Float64=1.0,
-    a_bounds::Vector{Float64}=fill(a_bound, sys.n_drives),
+    a_bounds=fill(a_bound, sys.n_drives),
     a_guess::Union{AbstractMatrix{Float64}, Nothing}=nothing,
     da_bound::Float64=Inf,
-    da_bounds::Vector{Float64}=fill(da_bound, sys.n_drives),
+    da_bounds=fill(da_bound, sys.n_drives),
     dda_bound::Float64=1.0,
-    dda_bounds::Vector{Float64}=fill(dda_bound, sys.n_drives),
-    Δt_min::Float64=0.001 * Δt,
-    Δt_max::Float64=2.0 * Δt,
+    dda_bounds=fill(dda_bound, sys.n_drives),
+    Δt_min::Float64=0.5 * minimum(Δt),
+    Δt_max::Float64=2.0 * maximum(Δt),
     Q::Float64=100.0,
     R=1e-2,
     R_a::Union{Float64, Vector{Float64}}=R,
     R_da::Union{Float64, Vector{Float64}}=R,
     R_dda::Union{Float64, Vector{Float64}}=R,
+    state_leakage_indices::Union{Nothing, AbstractVector{Int}}=nothing,
     constraints::Vector{<:AbstractConstraint}=AbstractConstraint[],
     piccolo_options::PiccoloOptions=PiccoloOptions(),
 )
@@ -132,9 +132,10 @@ function QuantumStateSmoothPulseProblem(
     end
 
     # Optional Piccolo constraints and objectives
-    apply_piccolo_options!(
-        J, constraints, piccolo_options, traj, state_name, timestep_name;
-        state_leakage_indices=piccolo_options.state_leakage_indices
+    J += apply_piccolo_options!(
+        piccolo_options, constraints, traj;
+        state_names=state_names,
+        state_leakage_indices= isnothing(state_leakage_indices) ? nothing : fill(state_leakage_indices, length(state_names))
     )
 
     state_names = [

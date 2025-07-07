@@ -15,10 +15,14 @@ export UnitaryVariationalProblem
 Constructs a unitary variational problem for optimizing quantum control trajectories.
 
 # Arguments
+
 - `system::VariationalQuantumSystem`: The quantum system to be controlled, containing variational parameters.
 - `goal::AbstractPiccoloOperator`: The target operator or state to achieve at the end of the trajectory.
 - `T::Int`: The total number of timesteps in the trajectory.
 - `Δt::Union{Float64, <:AbstractVector{Float64}}`: The timestep duration or a vector of timestep durations.
+
+# Keyword Arguments
+
 - `robust_times::AbstractVector`: Times at which robustness to variations in the trajectory is enforced.
 - `sensitive_times::AbstractVector`: Times at which sensitivity to variations in the trajectory is enhanced.
 - `unitary_integrator`: The integrator used for unitary evolution (default: `VariationalUnitaryIntegrator`).
@@ -29,11 +33,11 @@ Constructs a unitary variational problem for optimizing quantum control trajecto
 - `timestep_name::Symbol`: The name of the timestep variable (default: `:Δt`).
 - `init_trajectory::Union{NamedTrajectory, Nothing}`: An optional initial trajectory to start optimization.
 - `a_bound::Float64`: The bound for the control variable `a` (default: `1.0`).
-- `a_bounds::Vector`: Bounds for each control variable (default: filled with `a_bound`).
+- `a_bounds`: Bounds for each control variable (default: filled with `a_bound`).
 - `da_bound::Float64`: The bound for the derivative of the control variable (default: `Inf`).
-- `da_bounds::Vector`: Bounds for each derivative of the control variable.
+- `da_bounds`: Bounds for each derivative of the control variable.
 - `dda_bound::Float64`: The bound for the second derivative of the control variable (default: `1.0`).
-- `dda_bounds::Vector`: Bounds for each second derivative of the control variable.
+- `dda_bounds`: Bounds for each second derivative of the control variable.
 - `Δt_min::Float64`: Minimum allowed timestep duration.
 - `Δt_max::Float64`: Maximum allowed timestep duration.
 - `Q::Float64`: Weight for the unitary infidelity objective (default: `100.0`).
@@ -44,10 +48,12 @@ Constructs a unitary variational problem for optimizing quantum control trajecto
 - `piccolo_options::PiccoloOptions`: Options for configuring the Piccolo optimization framework.
 
 # Returns
+
 A `DirectTrajOptProblem` object representing the optimization problem, including the 
 trajectory, objective, integrators, and constraints.
 
 # Notes
+
 This function constructs a trajectory optimization problem for quantum control using 
 variational principles. It supports robust and sensitive trajectory design, regularization, 
 and optional constraints. The problem is solved using the Piccolo optimization framework.
@@ -72,11 +78,11 @@ function UnitaryVariationalProblem(
     a_bound::Float64=1.0,
     a_bounds=fill(a_bound, system.n_drives),
     da_bound::Float64=Inf,
-    da_bounds::Vector{Float64}=fill(da_bound, system.n_drives),
+    da_bounds=fill(da_bound, system.n_drives),
     dda_bound::Float64=1.0,
-    dda_bounds::Vector{Float64}=fill(dda_bound, system.n_drives),
-    Δt_min::Float64=Δt isa Float64 ? 0.5 * Δt : 0.5 * mean(Δt),
-    Δt_max::Float64=Δt isa Float64 ? 1.5 * Δt : 1.5 * mean(Δt),
+    dda_bounds=fill(dda_bound, system.n_drives),
+    Δt_min::Float64=0.5 * minimum(Δt),
+    Δt_max::Float64=2.0 * maximum(Δt),
     Q::Float64=100.0,
     Q_s::Float64=1e-2,
     Q_r::Float64=100.0,
@@ -91,6 +97,12 @@ function UnitaryVariationalProblem(
         println("    constructing UnitaryVariationalProblem...")
         println("\tusing integrator: $(typeof(variational_integrator))")
         println("\ttotal variational parameters: $(length(system.G_vars))")
+        if !isempty(robust_times)
+            println("\trobust knot points: $(robust_times)")
+        end
+        if !isempty(sensitive_times)
+            println("\tsensitive knot points: $(sensitive_times)")
+        end
     end
 
     # Trajectory
@@ -122,14 +134,22 @@ function UnitaryVariationalProblem(
         drive_name=control_name
     )
 
-    variational_state_names = [
+    # Add variational components to the trajectory
+    var_state_names = Tuple(
         Symbol(string(variational_state_name) * "$(i)") for i in eachindex(system.G_vars)
-    ]
-
-    for (name, scale, Ũ⃗_v) in zip(variational_state_names, variational_scales, Ũ⃗_vars)
-        add_component!(traj, name, Ũ⃗_v / scale; type=:state)
-        traj.initial = merge(traj.initial, (name => Ũ⃗_v[:, 1] / scale,))
-    end
+    )
+    var_comps_inits = NamedTuple{var_state_names}(
+        Ũ⃗_v[:, 1] / scale for (scale, Ũ⃗_v) in zip(variational_scales, Ũ⃗_vars)
+    )
+    var_comps_data = NamedTuple{var_state_names}(
+        Ũ⃗_v / scale for (scale, Ũ⃗_v) in zip(variational_scales, Ũ⃗_vars)
+    )
+    traj = add_components(
+        traj, 
+        var_comps_data; 
+        type=:state,
+        initial=merge(traj.initial, var_comps_inits)
+    )
 
     control_names = [
         name for name ∈ traj.names
@@ -144,7 +164,7 @@ function UnitaryVariationalProblem(
 
     # sensitivity
     for (name, scale, s, r) ∈ zip(
-        variational_state_names, 
+        var_state_names, 
         variational_scales, 
         sensitive_times, 
         robust_times
@@ -160,14 +180,17 @@ function UnitaryVariationalProblem(
     end
     
     # Optional Piccolo constraints and objectives
-    apply_piccolo_options!(
-        J, constraints, piccolo_options, traj, state_name, timestep_name;
-        state_leakage_indices=goal isa EmbeddedOperator ? get_leakage_indices(goal) : nothing
+    J += apply_piccolo_options!(
+        piccolo_options, constraints, traj;
+        state_names=state_name,
+        state_leakage_indices=goal isa EmbeddedOperator ? 
+            get_iso_vec_leakage_indices(goal) :
+            nothing
     )
 
     integrators = [
         variational_integrator(
-            system, traj, state_name, variational_state_names, control_name, 
+            system, traj, state_name, [var_state_names...], control_name, 
             scales=variational_scales
         ),
         DerivativeIntegrator(traj, control_name, control_names[2]),
@@ -213,5 +236,5 @@ end
 
     sense_n = norm(sense_scale * sense_prob.trajectory.Ũ⃗ᵥ1)
     rob_n = norm(rob_scale * rob_prob.trajectory.Ũ⃗ᵥ1)
-    @assert sense_n > rob_n
+    @test sense_n > rob_n
 end

@@ -119,6 +119,8 @@ function RydbergChainSystem(;
     )
 end
 
+# *************************************************************************** #
+
 @testitem "Rydberg system test" begin
     using PiccoloQuantumObjects
 

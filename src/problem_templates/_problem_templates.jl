@@ -10,16 +10,18 @@ using TrajectoryIndexingUtils
 using NamedTrajectories
 using DirectTrajOpt
 using PiccoloQuantumObjects
-using LinearAlgebra
-using SparseArrays
+
 using ExponentialAction
 using JLD2
+using LinearAlgebra
+using SparseArrays
 using TestItems
 
 include("unitary_smooth_pulse_problem.jl")
 include("unitary_variational_problem.jl")
 include("unitary_minimum_time_problem.jl")
 include("unitary_sampling_problem.jl")
+include("unitary_free_phase_problem.jl")
 
 include("quantum_state_smooth_pulse_problem.jl")
 include("quantum_state_minimum_time_problem.jl")
@@ -27,45 +29,43 @@ include("quantum_state_sampling_problem.jl")
 
 
 function apply_piccolo_options!(
-    J::Objective,
-    constraints::AbstractVector{<:AbstractConstraint},
     piccolo_options::PiccoloOptions,
-    traj::NamedTrajectory,
-    state_names::AbstractVector{Symbol},
-    timestep_name::Symbol;
-    state_leakage_indices::Union{Nothing, AbstractVector{<:AbstractVector{Int}}}=nothing,
-    free_time::Bool=true,
+    constraints::AbstractVector{<:AbstractConstraint},
+    traj::NamedTrajectory;
+    state_names::Union{Nothing, Symbol, AbstractVector{Symbol}}=nothing,
+    state_leakage_indices::Union{Nothing, AbstractVector{Int}, AbstractVector{<:AbstractVector{Int}}}=nothing,
 )
-    if piccolo_options.leakage_suppression
-        throw(error("L1 is not implemented."))
-        # if piccolo_options.verbose
-        #     println("\tapplying leakage suppression: $(state_names)")
-        # end
+    J = NullObjective(traj)
 
-        # if isnothing(state_leakage_indices)
-        #     error("You must provide leakage indices for leakage suppression.")
-        # end
-        # for (state_name, leakage_indices) ∈ zip(state_names, state_leakage_indices)
-        #     J += L1Regularizer!(
-        #         constraints,
-        #         state_name,
-        #         traj;
-        #         R_value=piccolo_options.R_leakage,
-        #         indices=leakage_indices,
-        #     )
-        # end
+    if piccolo_options.leakage_constraint
+        val = piccolo_options.leakage_constraint_value
+        if piccolo_options.verbose
+            println("\tapplying leakage suppression: $(state_names) < $(val)")
+        end
+
+        if isnothing(state_leakage_indices)
+            throw(ValueError("Leakage indices are required for leakage suppression."))
+        end
+
+        if state_names isa Symbol
+            state_names = [state_names]
+            state_leakage_indices = [state_leakage_indices]
+        end
+
+        for (name, indices) ∈ zip(state_names, state_leakage_indices)
+            J += LeakageObjective(indices, name, traj, Qs=fill(piccolo_options.leakage_cost, traj.T))
+            push!(constraints, LeakageConstraint(val, indices, name, traj))
+        end
     end
 
-    if free_time
+    if piccolo_options.timesteps_all_equal
         if piccolo_options.verbose
             println("\tapplying timesteps_all_equal constraint: $(traj.timestep)")
         end
-        if piccolo_options.timesteps_all_equal
-            push!(
-                constraints,
-                TimeStepsAllEqualConstraint(traj)
-            )
-        end
+        push!(
+            constraints,
+            TimeStepsAllEqualConstraint(traj)
+        )
     end
 
     if !isnothing(piccolo_options.complex_control_norm_constraint_name)
@@ -81,35 +81,7 @@ function apply_piccolo_options!(
         push!(constraints, norm_con)
     end
 
-    return
+    return J
 end
-
-function apply_piccolo_options!(
-    J::Objective,
-    constraints::AbstractVector{<:AbstractConstraint},
-    piccolo_options::PiccoloOptions,
-    traj::NamedTrajectory,
-    state_name::Symbol,
-    timestep_name::Symbol;
-    state_leakage_indices::Union{Nothing, AbstractVector{Int}}=nothing,
-    kwargs...
-)
-    state_names = [
-        name for name ∈ traj.names
-            if startswith(string(name), string(state_name))
-    ]
-
-    return apply_piccolo_options!(
-        J,
-        constraints,
-        piccolo_options,
-        traj,
-        state_names,
-        timestep_name;
-        state_leakage_indices=isnothing(state_leakage_indices) ? nothing : fill(state_leakage_indices, length(state_names)),
-        kwargs...
-    )
-end
-
 
 end
