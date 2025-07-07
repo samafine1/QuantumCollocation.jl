@@ -115,7 +115,7 @@ println(fid_final)
 
 # Looks good!
 
-# # Now let's plot the pulse and the population trajectories for the first two columns of the unitary, i.e. initial state of $\ket{00}$ and $\ket{01}$. For this we provide the function [`plot_unitary_populations`](@ref).
+# Now let's plot the pulse and the population trajectories for the first two columns of the unitary, i.e. initial state of $\ket{00}$ and $\ket{01}$. For this we provide the function [`plot_unitary_populations`](@ref).
 # `plot_unitary_populations(prob.trajectory)`
 
 
@@ -125,7 +125,7 @@ solve!(min_time_prob; max_iter=300)
 fid_final_min_time = unitary_rollout_fidelity(min_time_prob.trajectory, sys)
 println(fid_final_min_time)
 
-# # And let's plot this solution
+# And let's plot this solution
 # `plot_unitary_populations(min_time_prob.trajectory)`
 
 # It looks like our pulse derivative bounds are holding back the solution, but regardless, the duration has decreased:
@@ -182,7 +182,7 @@ println(fid_final)
 
 # Again, looks good!
 
-# # Now let's plot the pulse and the population trajectories for the first two columns of the unitary, i.e. initial state of $\ket{00}$ and $\ket{01}$.
+# Now let's plot the pulse and the population trajectories for the first two columns of the unitary, i.e. initial state of $\ket{00}$ and $\ket{01}$.
 # `plot_unitary_populations(prob.trajectory)`
 
 # For fun, let's look at a minimum time pulse for this problem
@@ -192,7 +192,7 @@ solve!(min_time_prob; max_iter=300)
 fid_final_min_time = unitary_rollout_fidelity(min_time_prob.trajectory, sys)
 println(fid_final_min_time)
 
-# # And let's plot this solution
+# And let's plot this solution
 # `plot_unitary_populations(min_time_prob.trajectory)`
 
 # It looks like our pulse derivative bounds are holding back the solution, but regardless, the duration has decreased:
