@@ -124,12 +124,12 @@ function UnitarySmoothPulseProblem(
     end
 
     # Objective
-    if isnothing(H_err)
-        J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
-    else
-        J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
-        J += FirstOrderObjective(state_name, H_err, traj, [T])
-    end
+    # if isnothing(H_err)
+    #     J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
+    # else
+    J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
+    J += FirstOrderObjective(state_name, H_err, traj, [T])
+    # end
     control_names = [
         name for name ∈ traj.names
             if endswith(string(name), string(control_name))

@@ -14,6 +14,8 @@ using PiccoloQuantumObjects
 using DirectTrajOpt
 using TestItems
 using TrajectoryIndexingUtils
+using ForwardDiff
+using SparseArrays
 # --------------------------------------------------------- 
 #                       Kets
 # ---------------------------------------------------------
@@ -154,25 +156,46 @@ function FirstOrderObjective(
     H_err::AbstractMatrix{<:Number},
     traj::NamedTrajectory,
     times::AbstractVector{Int};
-    Qs::AbstractVector{<:Float64}=fill(1.0, length(times)),
+    Qs::AbstractVector{<:Float64}=fill(1.0, length(times))
 )
-    
-    function ℓ(Z)
-        Ũ⃗s = Z[slice(k, traj.components.Ũ⃗, traj.dim) for k=1:traj.T]
-        Us = [iso_vec_to_operator(Ũ⃗) for Ũ⃗ in Ũ⃗s]
-        terms = [Ũ⃗' * H_err * U for U in Us]
+
+    Ũ⃗_indices = [collect(slice(k, traj.components.Ũ⃗, traj.dim)) for k=1:traj.T]
+        
+    function ℓ(Z::AbstractVector{<:Real})
+        Ũ⃗s = [Z[idx] for idx in Ũ⃗_indices]
+        Us = [iso_vec_to_operator(Ũ⃗) for Ũ⃗ in Ũ⃗s]
+        terms = [U' * H_err * U for U in Us]
         sum_terms = sum(terms)
-        return real((conj(tr(sum_terms)) * tr(sum_terms))) / (traj.T^2 * (conj(H_err) * H_err))
+        return real((conj(tr(sum_terms)) * tr(sum_terms))) / real(traj.T^2 * norm(H_err)^2)
     end
 
-    return KnotPointObjective(
-        ℓ,
-        name,
-        traj;
-        Qs=Qs,
-        times=times
-    )
-end
+    ∇ℓ = Z -> ForwardDiff.gradient(ℓ, Z)
+
+    function ∂²ℓ_structure()
+        Z_dim = traj.dim * traj.T + traj.global_dim
+        structure = spzeros(Z_dim, Z_dim)
+        all_Ũ⃗_indices = vcat(Ũ⃗_indices...)
+        
+        for i in all_Ũ⃗_indices
+            for j in all_Ũ⃗_indices
+                structure[i, j] = 1.0
+            end
+        end
+        
+        structure_pairs = collect(zip(findnz(structure)[1:2]...))
+        return structure_pairs
+    end
+
+    function ∂²ℓ(Z::AbstractVector{<:Real})
+        structure_pairs = ∂²ℓ_structure()
+        H_full = ForwardDiff.hessian(ℓ, Z)
+        ∂²ℓ_values = [H_full[i, j] for (i, j) in structure_pairs]
+        
+        return ∂²ℓ_values
+    end
+
+    return Objective(ℓ, ∇ℓ, ∂²ℓ, ∂²ℓ_structure)
+    end
 
 # ---------------------------------------------------------
 #                       Leakage
