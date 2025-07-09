@@ -109,7 +109,7 @@ prob_leakage = UnitarySmoothPulseProblem(sys, op, T, Δt;
 
 ## solve the problem
 
-solve!(prob_leakage; max_iter=200)
+solve!(prob_leakage; max_iter=250)
 
 # Let's look at the fidelity in the subspace
 
