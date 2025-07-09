@@ -10,6 +10,7 @@ pages = [
     "Home" => "index.md",
     "Examples" => [
         "Two Qubit Gates" => "generated/examples/two_qubit_gates.md",
+        "Multilevel Transmon" => "generated/examples/multilevel_transmon.md",
     ],
     "Library" => [
         "Ket Problem Templates" => "generated/man/ket_problem_templates.md",
