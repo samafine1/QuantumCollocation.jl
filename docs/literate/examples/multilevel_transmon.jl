@@ -82,7 +82,9 @@ solve!(prob; max_iter=50)
 
 # Let's look at the fidelity in the subspace
 
-println("Fidelity: ", unitary_rollout_fidelity(prob.trajectory, sys; subspace=op.subspace))
+fid = unitary_rollout_fidelity(prob.trajectory, sys; subspace=op.subspace)
+println("Fidelity: ", fid)
+@assert fid > 0.99
 
 # and plot the result using the `plot_unitary_populations` function.
 
@@ -100,18 +102,20 @@ prob_leakage = UnitarySmoothPulseProblem(sys, op, T, Δt;
     a_guess=prob.trajectory.a[:, :],
     piccolo_options=PiccoloOptions(
         leakage_constraint=true,
-        leakage_constraint_value=1e-1,
-        leakage_cost=1e-1
-    )
+        leakage_constraint_value=1e-2,
+        leakage_cost=1e-2,
+    ),
 )
 
 ## solve the problem
 
-solve!(prob_leakage; max_iter=50)
+solve!(prob_leakage; max_iter=150)
 
 # Let's look at the fidelity in the subspace
 
-println("Fidelity: ", unitary_rollout_fidelity(prob_leakage.trajectory, sys; subspace=op.subspace))
+fid_leakage = unitary_rollout_fidelity(prob_leakage.trajectory, sys; subspace=op.subspace)
+println("Fidelity: ", fid_leakage)
+@assert fid_leakage > 0.99
 
 # and plot the result using the `plot_unitary_populations` function.
 
