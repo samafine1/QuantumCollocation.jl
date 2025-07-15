@@ -160,13 +160,13 @@ function FirstOrderObjective(
 )
 
     Ũ⃗_indices = [collect(slice(k, traj.components.Ũ⃗, traj.dim)) for k=1:traj.T]
-        
+
     function ℓ(Z::AbstractVector{<:Real})
         Ũ⃗s = [Z[idx] for idx in Ũ⃗_indices]
         Us = [iso_vec_to_operator(Ũ⃗) for Ũ⃗ in Ũ⃗s]
         terms = [U' * H_err * U for U in Us]
         sum_terms = sum(terms)
-        return real((conj(tr(sum_terms)) * tr(sum_terms))) / real(traj.T^2 * norm(H_err)^2)
+        return abs2(tr(sum_terms' * sum_terms)) / real(traj.T^2 * norm(H_err)^2)
     end
 
     ∇ℓ = Z -> ForwardDiff.gradient(ℓ, Z)
