@@ -55,7 +55,8 @@ with
 - `dda_bounds=fill(dda_bound, length(system.G_drives))`: the bounds on the control pulse second derivatives, one for each drive
 - `Δt_min::Float64=Δt isa Float64 ? 0.5 * Δt : 0.5 * mean(Δt)`: the minimum time step size
 - `Δt_max::Float64=Δt isa Float64 ? 1.5 * Δt : 1.5 * mean(Δt)`: the maximum time step size
-- 'H_err::Union{AbstractMatrix{<:Number}, Nothing}=nothing': the error Hamiltonian, or pertubation to robust
+- 'H_err::Union{AbstractMatrix{<:Number}, Nothing}=nothing': the error Hamiltonian on the unitary goal
+- 'activate_rob_loss::Bool=false': toggles whether the objective includes the FirstOrderObjective loss function
 - `Q::Float64=100.0`: the weight on the infidelity objective
 - `R=1e-2`: the weight on the regularization terms
 - `R_a::Union{Float64, Vector{Float64}}=R`: the weight on the regularization term for the control pulses
@@ -85,7 +86,8 @@ function UnitarySmoothPulseProblem(
     dda_bounds=fill(dda_bound, system.n_drives),
     Δt_min::Float64=0.5 * minimum(Δt),
     Δt_max::Float64=2.0 * maximum(Δt),
-    H_err::Union{AbstractMatrix{<:Number}, Nothing}=nothing, # added for problem
+    H_err::Union{AbstractMatrix{<:Number}, Nothing}=nothing,
+    activate_rob_loss::Bool=false,
     Q::Float64=100.0,
     R=1e-2,
     R_a::Union{Float64, Vector{Float64}}=R,
@@ -124,12 +126,12 @@ function UnitarySmoothPulseProblem(
     end
 
     # Objective
-    # if isnothing(H_err)
-    #     J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
-    # else
-    J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
-    J += FirstOrderObjective(state_name, H_err, traj, [T])
-    # end
+    if activate_rob_loss
+        J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
+        J += FirstOrderObjective(state_name, H_err, traj, [T])
+    else
+        J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
+    end
     control_names = [
         name for name ∈ traj.names
             if endswith(string(name), string(control_name))

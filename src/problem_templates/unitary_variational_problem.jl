@@ -40,6 +40,8 @@ Constructs a unitary variational problem for optimizing quantum control trajecto
 - `dda_bounds`: Bounds for each second derivative of the control variable.
 - `Δt_min::Float64`: Minimum allowed timestep duration.
 - `Δt_max::Float64`: Maximum allowed timestep duration.
+- 'H_err::Union{AbstractMatrix{<:Number}, Nothing}=nothing': the error Hamiltonian on the unitary goal
+- 'activate_rob_loss::Bool=false': toggles whether the objective includes the FirstOrderObjective loss function
 - `Q::Float64`: Weight for the unitary infidelity objective (default: `100.0`).
 - `Q_v::Float64`: Weight for sensitivity objectives (default: `1.0`).
 - `R`: Regularization weight for control variables (default: `1e-2`).
@@ -83,6 +85,8 @@ function UnitaryVariationalProblem(
     dda_bounds=fill(dda_bound, system.n_drives),
     Δt_min::Float64=0.5 * minimum(Δt),
     Δt_max::Float64=2.0 * maximum(Δt),
+    H_err::Union{AbstractMatrix{<:Number}, Nothing}=nothing,
+    activate_rob_loss::Bool=false,
     Q::Float64=100.0,
     Q_s::Float64=1e-2,
     Q_r::Float64=100.0,
@@ -157,7 +161,13 @@ function UnitaryVariationalProblem(
     ]
 
     # objective
-    J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
+    if activate_rob_loss
+        J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
+        J += FirstOrderObjective(state_name, H_err, traj, [T])
+    else
+        J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
+    end
+    # J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
     J += QuadraticRegularizer(control_names[1], traj, R_a)
     J += QuadraticRegularizer(control_names[2], traj, R_da)
     J += QuadraticRegularizer(control_names[3], traj, R_dda)
