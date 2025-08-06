@@ -55,9 +55,10 @@ with
 - `dda_bounds=fill(dda_bound, length(system.G_drives))`: the bounds on the control pulse second derivatives, one for each drive
 - `Δt_min::Float64=Δt isa Float64 ? 0.5 * Δt : 0.5 * mean(Δt)`: the minimum time step size
 - `Δt_max::Float64=Δt isa Float64 ? 1.5 * Δt : 1.5 * mean(Δt)`: the maximum time step size
+- 'activate_rob_loss::Bool=false,': flag to turn or off the toggling frame robustness objective
 - 'H_err::Union{AbstractMatrix{<:Number}, Nothing}=nothing': the error Hamiltonian on the unitary goal
-- 'activate_rob_loss::Bool=false': toggles whether the objective includes the FirstOrderObjective loss function
 - `Q::Float64=100.0`: the weight on the infidelity objective
+- 'Q_t::Float64=0.0': the weight of the objective the FirstOrderObjective loss function (default 0.0)
 - `R=1e-2`: the weight on the regularization terms
 - `R_a::Union{Float64, Vector{Float64}}=R`: the weight on the regularization term for the control pulses
 - `R_da::Union{Float64, Vector{Float64}}=R`: the weight on the regularization term for the control pulse derivatives
@@ -86,9 +87,10 @@ function UnitarySmoothPulseProblem(
     dda_bounds=fill(dda_bound, system.n_drives),
     Δt_min::Float64=0.5 * minimum(Δt),
     Δt_max::Float64=2.0 * maximum(Δt),
-    H_err::Union{AbstractMatrix{<:Number}, Nothing}=nothing,
     activate_rob_loss::Bool=false,
+    H_err::Union{AbstractMatrix{<:Number}, Nothing}=nothing,
     Q::Float64=100.0,
+    Q_t::Float64=0.0,
     R=1e-2,
     R_a::Union{Float64, Vector{Float64}}=R,
     R_da::Union{Float64, Vector{Float64}}=R,
@@ -100,7 +102,6 @@ function UnitarySmoothPulseProblem(
         println("    constructing UnitarySmoothPulseProblem...")
         println("\tusing integrator: $(typeof(unitary_integrator))")
     end
-
     # Trajectory
     if !isnothing(init_trajectory)
         traj = init_trajectory
@@ -128,7 +129,7 @@ function UnitarySmoothPulseProblem(
     # Objective
     if activate_rob_loss
         J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
-        J += FirstOrderObjective(state_name, H_err, traj, [T])
+        J += FirstOrderObjective(H_err, traj, [T]; Q_t=Q_t)
     else
         J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
     end
