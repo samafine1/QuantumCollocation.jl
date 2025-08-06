@@ -40,10 +40,11 @@ Constructs a unitary variational problem for optimizing quantum control trajecto
 - `dda_bounds::Vector`: Bounds for each second derivative of the control variable.
 - `Δt_min::Float64`: Minimum allowed timestep duration.
 - `Δt_max::Float64`: Maximum allowed timestep duration.
+- 'activate_rob_loss::Bool=false,': flag to turn or off the toggling frame robustness objective
 - 'H_err::Union{AbstractMatrix{<:Number}, Nothing}=nothing': the error Hamiltonian on the unitary goal
-- 'activate_rob_loss::Bool=false': toggles whether the objective includes the FirstOrderObjective loss function
 - `Q::Float64`: Weight for the unitary infidelity objective (default: `100.0`).
 - `Q_v::Float64`: Weight for sensitivity objectives (default: `1.0`).
+- 'Q_t::Float64`: Weight for toggling frame objective (default: `0.0`).
 - `R`: Regularization weight for control variables (default: `1e-2`).
 - `R_a`, `R_da`, `R_dda`: Regularization weights for control, its derivative, and second derivative.
 - `constraints::Vector`: Additional constraints for the optimization problem.
@@ -85,11 +86,12 @@ function UnitaryVariationalProblem(
     dda_bounds::Vector{Float64}=fill(dda_bound, system.n_drives),
     Δt_min::Float64=0.5 * minimum(Δt),
     Δt_max::Float64=2.0 * maximum(Δt),
-    H_err::Union{AbstractMatrix{<:Number}, Nothing}=nothing,
     activate_rob_loss::Bool=false,
+    H_err::Union{AbstractMatrix{<:Number}, Nothing}=nothing,
     Q::Float64=100.0,
     Q_s::Float64=1e-2,
     Q_r::Float64=100.0,
+    Q_t::Float64=0.0,
     R=1e-2,
     R_a::Union{Float64, Vector{Float64}}=R,
     R_da::Union{Float64, Vector{Float64}}=R,
@@ -160,10 +162,10 @@ function UnitaryVariationalProblem(
             if endswith(string(name), string(control_name))
     ]
 
-    # objective
+    # Objective
     if activate_rob_loss
         J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
-        J += FirstOrderObjective(state_name, H_err, traj, [T])
+        J += FirstOrderObjective(H_err, traj, [T]; Q_t=Q_t)
     else
         J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
     end

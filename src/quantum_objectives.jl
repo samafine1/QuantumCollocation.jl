@@ -152,24 +152,25 @@ function UnitarySensitivityObjective(
 end
 
 function FirstOrderObjective(
-    name::Symbol,
     H_err::AbstractMatrix{<:Number},
     traj::NamedTrajectory,
     times::AbstractVector{Int};
-    Qs::AbstractVector{<:Float64}=fill(1.0, length(times))
+    Q_t::Float64=0.0
 )
 
     Ũ⃗_indices = [collect(slice(k, traj.components.Ũ⃗, traj.dim)) for k=1:traj.T]
 
-    function ℓ(Z::AbstractVector{<:Real})
-        Ũ⃗s = [Z[idx] for idx in Ũ⃗_indices]
-        Us = [iso_vec_to_operator(Ũ⃗) for Ũ⃗ in Ũ⃗s]
-        terms = [U' * H_err * U for U in Us]
-        sum_terms = sum(terms)
-        return abs2(tr(sum_terms' * sum_terms)) / real(traj.T^2 * norm(H_err)^2)
+    @views function toggle(Z::AbstractVector, H::AbstractMatrix, idx::AbstractVector{<:Int})
+        U = iso_vec_to_operator(Z[idx])
+        return U' * H * U
     end
 
-    ∇ℓ = Z -> ForwardDiff.gradient(ℓ, Z)
+    function ℓ(Z::AbstractVector{<:Real})
+        sum_terms = sum(toggle(Z, H_err, idx) for idx in Ũ⃗_indices)
+        return Q_t * norm(tr(sum_terms' * sum_terms), 2) / real(traj.T^2 * norm(H_err, 2))
+    end
+
+    ∇ℓ = Z -> Q_t * ForwardDiff.gradient(ℓ, Z)
 
     function ∂²ℓ_structure()
         Z_dim = traj.dim * traj.T + traj.global_dim
@@ -189,7 +190,7 @@ function FirstOrderObjective(
     function ∂²ℓ(Z::AbstractVector{<:Real})
         structure_pairs = ∂²ℓ_structure()
         H_full = ForwardDiff.hessian(ℓ, Z)
-        ∂²ℓ_values = [H_full[i, j] for (i, j) in structure_pairs]
+        ∂²ℓ_values = [Q_t * H_full[i, j] for (i, j) in structure_pairs]
         
         return ∂²ℓ_values
     end
