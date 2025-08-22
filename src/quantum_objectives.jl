@@ -16,6 +16,7 @@ using TestItems
 using TrajectoryIndexingUtils
 using ForwardDiff
 using SparseArrays
+# using Zygote
 # --------------------------------------------------------- 
 #                       Kets
 # ---------------------------------------------------------

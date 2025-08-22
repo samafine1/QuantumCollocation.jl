@@ -17,6 +17,7 @@ using LinearAlgebra
 using SparseArrays
 using TestItems
 
+include("unitary_toggle_problem.jl")
 include("unitary_smooth_pulse_problem.jl")
 include("unitary_variational_problem.jl")
 include("unitary_minimum_time_problem.jl")
