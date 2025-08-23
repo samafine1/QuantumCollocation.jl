@@ -153,22 +153,25 @@ function UnitarySensitivityObjective(
 end
 
 function FirstOrderObjective(
-    H_err::AbstractMatrix{<:Number},
-    traj::NamedTrajectory,
-    times::AbstractVector{Int};
-    Q_t::Float64=0.0
+    H_err::Function,
+    traj::NamedTrajectory;
+    Q_t::Float64=1.0
 )
+    a_indices  = [collect(slice(k, traj.components.a, traj.dim)) for k in 1:traj.T]
+    Ũ⃗_indices  = [collect(slice(k, traj.components.Ũ⃗, traj.dim)) for k in 1:traj.T]
+    a_ref = ones(length(traj.components.a))
+    H_scale = norm(H_err(a_ref), 2)
 
-    Ũ⃗_indices = [collect(slice(k, traj.components.Ũ⃗, traj.dim)) for k=1:traj.T]
-
-    @views function toggle(Z::AbstractVector, H::AbstractMatrix, idx::AbstractVector{<:Int})
-        U = iso_vec_to_operator(Z[idx])
-        return U' * H * U
+    @views function toggle(Z::AbstractVector, a_idx::AbstractVector{<:Int}, U_idx::AbstractVector{<:Int})
+        a  = Z[a_idx]
+        U  = iso_vec_to_operator(Z[U_idx])
+        He = H_err(a)
+        return U' * He * U
     end
 
     function ℓ(Z::AbstractVector{<:Real})
-        sum_terms = sum(toggle(Z, H_err, idx) for idx in Ũ⃗_indices)
-        return Q_t * norm(tr(sum_terms' * sum_terms), 2) / real(traj.T^2 * norm(H_err, 2))
+        sum_terms = sum(toggle(Z, a_idx, U_idx) for (a_idx, U_idx) in zip(a_indices, Ũ⃗_indices))
+        return Q_t * real(norm(tr(sum_terms' * sum_terms), 2)) / real(traj.T^2 * H_scale)
     end
 
     ∇ℓ = Z -> Q_t * ForwardDiff.gradient(ℓ, Z)
