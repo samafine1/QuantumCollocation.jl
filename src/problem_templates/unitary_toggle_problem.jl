@@ -72,7 +72,7 @@ function UnitaryToggleProblem(
     goal::AbstractPiccoloOperator,
     T::Int,
     Δt::Union{Float64, <:AbstractVector{Float64}},
-    H_err::Union{<:Matrix{<:Number}, Function};
+    H_err::Function;
     unitary_integrator=UnitaryIntegrator,
     state_name::Symbol = :Ũ⃗,
     control_name::Symbol = :a,
@@ -125,15 +125,7 @@ function UnitaryToggleProblem(
     end
     # Objective
     J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
-    
-    println(typeof(H_err))
-    if typeof(H_err)<:Function
-        H_e = H_err(traj.components.a)
-        println(typeof(H_err))
-        J += FirstOrderObjective(H_e, traj, [T]; Q_t=Q_t)
-    else
-        J += FirstOrderObjective(H_err, traj, [T]; Q_t=Q_t)
-    end
+    J += FirstOrderObjective(H_err, traj; Q_t=Q_t)
 
     control_names = [
         name for name ∈ traj.names
