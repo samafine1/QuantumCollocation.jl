@@ -51,7 +51,7 @@ function UnitaryMaxToggleProblem(
 )
     if piccolo_options.verbose
         println("    constructing UnitaryMaxToggleProblem (maximize robustness)...")
-        println("\tfinal fidelity: $(final_fidelity)")
+        println("\tfinal fidelity: $(final_fidelity), Q_t = $(Q_t)")
     end
 
     objective += FirstOrderObjective(H_err, trajectory; Q_t=Q_t)
@@ -61,13 +61,66 @@ function UnitaryMaxToggleProblem(
     )
     constraints = push!(constraints, fidelity_constraint)
 
-    return DirectTrajOptProblem(
-        trajectory,
+    return DirectTrajOptProblem(trajectory, objective, dynamics, constraints)
+end
+
+
+function UnitaryMaxToggleProblem(
+    prob::DirectTrajOptProblem,
+    goal::AbstractPiccoloOperator,
+    H_err::Function;
+    objective::Objective = prob.objective,
+    constraints::AbstractVector{<:AbstractConstraint} = deepcopy(prob.constraints),
+    Q_t::Float64 = 1.0,
+    unitary_name::Symbol = :Ũ⃗,
+    final_fidelity::Float64 = 1.0,
+    piccolo_options::PiccoloOptions = PiccoloOptions(),
+)
+    return UnitaryMaxToggleProblem(
+        deepcopy(prob.trajectory),
+        goal,
         objective,
-        dynamics,
-        constraints
+        prob.dynamics,
+        constraints,
+        H_err;
+        Q_t=Q_t,
+        unitary_name=unitary_name,
+        final_fidelity=final_fidelity,
+        piccolo_options=piccolo_options,
     )
 end
+
+# function UnitaryMaxToggleProblem(
+#     trajectory::NamedTrajectory,
+#     goal::AbstractPiccoloOperator,
+#     objective::Objective,
+#     dynamics::TrajectoryDynamics,
+#     constraints::AbstractVector{<:AbstractConstraint},
+#     H_err::Function;
+#     Q_t::Float64 = 1.0,
+#     unitary_name::Symbol = :Ũ⃗,
+#     final_fidelity::Float64 = 1.0,
+#     piccolo_options::PiccoloOptions = PiccoloOptions(),
+# )
+#     if piccolo_options.verbose
+#         println("    constructing UnitaryMaxToggleProblem (maximize robustness)...")
+#         println("\tfinal fidelity: $(final_fidelity)")
+#     end
+
+#     objective += FirstOrderObjective(H_err, trajectory; Q_t=Q_t)
+
+#     fidelity_constraint = FinalUnitaryFidelityConstraint(
+#         goal, unitary_name, final_fidelity, trajectory
+#     )
+#     constraints = push!(constraints, fidelity_constraint)
+
+#     return DirectTrajOptProblem(
+#         trajectory,
+#         objective,
+#         dynamics,
+#         constraints
+#     )
+# end
 
 # --------------------------------------------------------------------------- #
 # Free phases
@@ -113,7 +166,8 @@ end
 
 function UnitaryMaxToggleProblem(
     prob::DirectTrajOptProblem,
-    goal::Function;
+    goal::Function,
+    H_err::Function;
     objective::Objective=prob.objective,
     constraints::AbstractVector{<:AbstractConstraint}=deepcopy(prob.constraints),
     kwargs...
@@ -123,7 +177,8 @@ function UnitaryMaxToggleProblem(
         goal,
         objective,
         deepcopy(prob.dynamics),
-        constraints;
+        constraints,
+        H_err;
         kwargs...
     )
 end
