@@ -44,7 +44,7 @@ function UnitaryMaxToggleProblem(
     dynamics::TrajectoryDynamics,
     constraints::AbstractVector{<:AbstractConstraint},
     H_err::Function;
-    Q_t::Float64 = 1.0,
+    Q_t::Float64 = 100.0,
     unitary_name::Symbol = :Ũ⃗,
     final_fidelity::Float64 = 1.0,
     piccolo_options::PiccoloOptions = PiccoloOptions(),
@@ -69,17 +69,45 @@ function UnitaryMaxToggleProblem(
     prob::DirectTrajOptProblem,
     goal::AbstractPiccoloOperator,
     H_err::Function;
-    objective::Objective = prob.objective,
+    objective::Objective = NullObjective(prob.trajectory),
     constraints::AbstractVector{<:AbstractConstraint} = deepcopy(prob.constraints),
-    Q_t::Float64 = 1.0,
+    Q_t::Float64 = 1e1,
     unitary_name::Symbol = :Ũ⃗,
+    control_name::Symbol = :a,
+    R=1e-2,
+    R_a::Union{Float64, Vector{Float64}}=R,
+    R_da::Union{Float64, Vector{Float64}}=R,
+    R_dda::Union{Float64, Vector{Float64}}=R,
     final_fidelity::Float64 = 1.0,
     piccolo_options::PiccoloOptions = PiccoloOptions(),
 )
+    traj = prob.trajectory
+    J = objective
+    # Q = 1/Q_t
+    # J = UnitaryInfidelityObjective(goal, unitary_name, traj; Q=Q)
+    control_names = [
+            name for name ∈ traj.names
+                if endswith(string(name), string(control_name))
+        ]
+
+    J += QuadraticRegularizer(control_names[1], traj, R_a)
+    J += QuadraticRegularizer(control_names[2], traj, R_da)
+    J += QuadraticRegularizer(control_names[3], traj, R_dda)
+
+    # Optional Piccolo constraints and objectives
+    J += apply_piccolo_options!(
+        piccolo_options, constraints, traj; 
+        state_names=unitary_name,
+        state_leakage_indices=goal isa EmbeddedOperator ? 
+            get_iso_vec_leakage_indices(goal) : 
+            nothing
+    )
+
+
     return UnitaryMaxToggleProblem(
         deepcopy(prob.trajectory),
         goal,
-        objective,
+        J,
         prob.dynamics,
         constraints,
         H_err;
