@@ -88,9 +88,9 @@ function UnitarySmoothPulseProblem(
     Δt_min::Float64=0.5 * minimum(Δt),
     Δt_max::Float64=2.0 * maximum(Δt),
     activate_rob_loss::Bool=false,
-    H_err::Union{AbstractMatrix{<:Number}, Nothing}=nothing,
+    H_err::Union{Function, Nothing}=nothing,
     Q::Float64=100.0,
-    Q_t::Float64=0.0,
+    Q_t::Float64=1e-2,
     R=1e-2,
     R_a::Union{Float64, Vector{Float64}}=R,
     R_da::Union{Float64, Vector{Float64}}=R,
@@ -127,11 +127,9 @@ function UnitarySmoothPulseProblem(
     end
 
     # Objective
+    J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
     if activate_rob_loss
-        J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
-        J += FirstOrderObjective(H_err, traj, [T]; Q_t=Q_t)
-    else
-        J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
+        J += FirstOrderObjective(H_err, traj; Q_t=Q_t)
     end
     control_names = [
         name for name ∈ traj.names
