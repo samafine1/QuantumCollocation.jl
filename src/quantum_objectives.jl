@@ -5,6 +5,7 @@ export UnitaryInfidelityObjective
 export DensityMatrixPureStateInfidelityObjective
 export UnitarySensitivityObjective
 export FirstOrderObjective
+export FirstOrderObjective
 export UnitaryFreePhaseInfidelityObjective
 export LeakageObjective
 
@@ -13,6 +14,10 @@ using NamedTrajectories
 using PiccoloQuantumObjects
 using DirectTrajOpt
 using TestItems
+using TrajectoryIndexingUtils
+using ForwardDiff
+using SparseArrays
+# using Zygote
 using TrajectoryIndexingUtils
 using ForwardDiff
 using SparseArrays

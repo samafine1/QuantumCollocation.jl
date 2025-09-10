@@ -44,7 +44,7 @@ function UnitaryMaxToggleProblem(
     dynamics::TrajectoryDynamics,
     constraints::AbstractVector{<:AbstractConstraint},
     H_err::Function;
-    Q_t::Float64 = 1.0,
+    Q_t::Float64 = 100.0,
     unitary_name::Symbol = :Ũ⃗,
     final_fidelity::Float64 = 1.0,
     piccolo_options::PiccoloOptions = PiccoloOptions(),
