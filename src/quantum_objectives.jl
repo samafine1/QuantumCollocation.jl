@@ -171,7 +171,7 @@ function FirstOrderObjective(
 
     function ℓ(Z::AbstractVector{<:Real})
         sum_terms = sum(toggle(Z, a_idx, U_idx) for (a_idx, U_idx) in zip(a_indices, Ũ⃗_indices))
-        return Q_t * real(norm(tr(sum_terms' * sum_terms), 2)) / real(traj.T^2 * H_scale)
+        return real(norm(tr(sum_terms' * sum_terms), 2)) / real(traj.T^2 * H_scale)
     end
 
     ∇ℓ = Z -> Q_t * ForwardDiff.gradient(ℓ, Z)
@@ -199,7 +199,9 @@ function FirstOrderObjective(
         return ∂²ℓ_values
     end
 
-    return Objective(ℓ, ∇ℓ, ∂²ℓ, ∂²ℓ_structure)
+    ℓ_weighted = Z -> Q_t .* ℓ(Z)
+
+    return Objective(ℓ_weighted, ∇ℓ, ∂²ℓ, ∂²ℓ_structure)
     end
 
 # ---------------------------------------------------------

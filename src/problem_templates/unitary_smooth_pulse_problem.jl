@@ -73,7 +73,7 @@ function UnitarySmoothPulseProblem(
     goal::AbstractPiccoloOperator,
     T::Int,
     Δt::Union{Float64, <:AbstractVector{Float64}};
-    unitary_integrator=UnitaryIntegrator,
+    unitary_integrator=UnitaryExponentialIntegrator,
     state_name::Symbol = :Ũ⃗,
     control_name::Symbol = :a,
     timestep_name::Symbol = :Δt,

@@ -73,7 +73,7 @@ function UnitaryToggleProblem(
     T::Int,
     Δt::Union{Float64, <:AbstractVector{Float64}},
     H_err::Function;
-    unitary_integrator=UnitaryIntegrator,
+    unitary_integrator=UnitaryExponentialIntegrator,
     state_name::Symbol = :Ũ⃗,
     control_name::Symbol = :a,
     timestep_name::Symbol = :Δt,
