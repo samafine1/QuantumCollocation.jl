@@ -10,6 +10,7 @@ using TrajectoryIndexingUtils
 using NamedTrajectories
 using DirectTrajOpt
 using PiccoloQuantumObjects
+using Piccolissimo
 
 using ExponentialAction
 using JLD2
