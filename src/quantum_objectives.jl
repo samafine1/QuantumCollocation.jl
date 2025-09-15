@@ -8,6 +8,8 @@ export FirstOrderObjective
 export FirstOrderObjective
 export UnitaryFreePhaseInfidelityObjective
 export LeakageObjective
+export UniversalObjective
+export FastUniversalObjective
 
 using LinearAlgebra
 using NamedTrajectories
@@ -176,10 +178,10 @@ function FirstOrderObjective(
 
     function ℓ(Z::AbstractVector{<:Real})
         sum_terms = sum(toggle(Z, a_idx, U_idx) for (a_idx, U_idx) in zip(a_indices, Ũ⃗_indices))
-        return real(norm(tr(sum_terms' * sum_terms), 2)) / real(traj.T^2 * H_scale)
+        return Q_t * real(norm(tr(sum_terms' * sum_terms), 2)) / real(traj.T^2 * H_scale)
     end
 
-    ∇ℓ = Z -> Q_t * ForwardDiff.gradient(ℓ, Z)
+    ∇ℓ = Z ->  ForwardDiff.gradient(ℓ, Z)
 
     function ∂²ℓ_structure()
         Z_dim = traj.dim * traj.T + traj.global_dim
@@ -199,16 +201,133 @@ function FirstOrderObjective(
     function ∂²ℓ(Z::AbstractVector{<:Real})
         structure_pairs = ∂²ℓ_structure()
         H_full = ForwardDiff.hessian(ℓ, Z)
-        ∂²ℓ_values = [Q_t * H_full[i, j] for (i, j) in structure_pairs]
+        ∂²ℓ_values = [H_full[i, j] for (i, j) in structure_pairs]
         
         return ∂²ℓ_values
     end
 
-    ℓ_weighted = Z -> Q_t .* ℓ(Z)
-
-    return Objective(ℓ_weighted, ∇ℓ, ∂²ℓ, ∂²ℓ_structure)
+    return Objective(ℓ, ∇ℓ, ∂²ℓ, ∂²ℓ_structure)
     end
 
+function UniversalObjective(
+    traj::NamedTrajectory;
+    Q_t::Float64 = 1.0,
+)
+
+    T = traj.T
+    U = ones(length(traj.components.Ũ⃗))
+    U_scale = norm(U, 2)
+    Ũ⃗_indices  = [collect(slice(k, traj.components.Ũ⃗, traj.dim)) for k in 1:traj.T]
+    # one = Ũ⃗_indices[1]
+    # U_scale  = norm(iso_vec_to_operator(Z[one]), 2)
+    # Ũ⃗_indices  = [collect(slice(k, traj.components.Ũ⃗, traj.dim)) for k in 1:traj.T]
+    # a_ref = ones(length(traj.components.a))
+    # H_scale = norm(H_err(a_ref), 2)
+
+    @views function trace(Z::AbstractVector, k_idx::AbstractVector{<:Int}, l_idx::AbstractVector{<:Int})
+        Uₗ = iso_vec_to_operator(Z[l_idx])
+        Uₖ = iso_vec_to_operator(Z[k_idx])
+        return tr(Uₖ * Uₗ')
+    end
+
+    # ---- Objective ----
+    function ℓ(Z::AbstractVector{<:Real})
+        # Double sum over (k, ℓ) of |tr(U_{kℓ})|^2
+        s = 0
+        for k in 1:T
+            for l in 1:T
+                τ = trace(Z, Ũ⃗_indices[k], Ũ⃗_indices[l])
+                s += abs2(τ)
+            end
+        end
+        return Q_t * (s / (U_scale * T^2) - 1.0)
+    end
+
+    ∇ℓ = Z -> ForwardDiff.gradient(ℓ, Z)
+
+    function ∂²ℓ_structure()
+        Z_dim = traj.dim * traj.T + traj.global_dim
+        structure = spzeros(Z_dim, Z_dim)
+        all_Ũ⃗_indices = vcat(Ũ⃗_indices...)
+        
+        for i in all_Ũ⃗_indices
+            for j in all_Ũ⃗_indices
+                structure[i, j] = 1.0
+            end
+        end
+        
+        structure_pairs = collect(zip(findnz(structure)[1:2]...))
+        return structure_pairs
+    end
+
+    function ∂²ℓ(Z::AbstractVector{<:Real})
+        structure_pairs = ∂²ℓ_structure()
+        H_full = ForwardDiff.hessian(ℓ, Z)
+        ∂²ℓ_values = [H_full[i, j] for (i, j) in structure_pairs]
+        
+        return ∂²ℓ_values
+    end
+
+    return Objective(ℓ, ∇ℓ, ∂²ℓ, ∂²ℓ_structure)
+end
+
+function FastUniversalObjective(
+    traj::NamedTrajectory;
+    Q_t::Float64 = 1.0,
+)
+
+    T = traj.T
+    U = ones(length(traj.components.Ũ⃗))
+    U_scale = norm(U, 2)
+    Ũ⃗_indices  = [collect(slice(k, traj.components.Ũ⃗, traj.dim)) for k in 1:traj.T]
+
+    @views function trace(Z::AbstractVector, k_idx::AbstractVector{<:Int}, l_idx::AbstractVector{<:Int})
+        Uₗ = iso_vec_to_operator(Z[l_idx])
+        Uₖ = iso_vec_to_operator(Z[k_idx])
+        return tr(Uₖ * Uₗ'), tr(Uₗ * Uₖ')
+    end
+
+    # ---- Objective ----
+    function ℓ(Z::AbstractVector{<:Real})
+        # Double sum over (k, ℓ) of |tr(U_{kℓ})|^2
+        s = 0
+        l = 1
+        for k in 1:T
+            for l in 1:k
+            τ1, τ2 = trace(Z, Ũ⃗_indices[k], Ũ⃗_indices[l])
+            s += abs2(τ1)
+            s += abs2(τ2)
+        end
+        return Q_t * (s / (U_scale * T^2) - 1.0)
+    end
+
+    ∇ℓ = Z -> ForwardDiff.gradient(ℓ, Z)
+
+    function ∂²ℓ_structure()
+        Z_dim = traj.dim * traj.T + traj.global_dim
+        structure = spzeros(Z_dim, Z_dim)
+        all_Ũ⃗_indices = vcat(Ũ⃗_indices...)
+        
+        for i in all_Ũ⃗_indices
+            for j in all_Ũ⃗_indices
+                structure[i, j] = 1.0
+            end
+        end
+        
+        structure_pairs = collect(zip(findnz(structure)[1:2]...))
+        return structure_pairs
+    end
+
+    function ∂²ℓ(Z::AbstractVector{<:Real})
+        structure_pairs = ∂²ℓ_structure()
+        H_full = ForwardDiff.hessian(ℓ, Z)
+        ∂²ℓ_values = [H_full[i, j] for (i, j) in structure_pairs]
+        
+        return ∂²ℓ_values
+    end
+
+    return Objective(ℓ, ∇ℓ, ∂²ℓ, ∂²ℓ_structure)
+end
 # ---------------------------------------------------------
 #                       Leakage
 # ---------------------------------------------------------

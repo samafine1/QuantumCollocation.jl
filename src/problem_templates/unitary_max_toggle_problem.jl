@@ -44,7 +44,7 @@ function UnitaryMaxToggleProblem(
     dynamics::TrajectoryDynamics,
     constraints::AbstractVector{<:AbstractConstraint},
     H_err::Function;
-    Q_t::Float64 = 100.0,
+    Q_t::Float64 = 1.0,
     unitary_name::Symbol = :Ũ⃗,
     final_fidelity::Float64 = 1.0,
     piccolo_options::PiccoloOptions = PiccoloOptions(),
@@ -71,7 +71,7 @@ function UnitaryMaxToggleProblem(
     H_err::Function;
     objective::Objective = NullObjective(prob.trajectory),
     constraints::AbstractVector{<:AbstractConstraint} = deepcopy(prob.constraints),
-    Q_t::Float64 = 1e1,
+    Q_t::Float64 = 1.0,
     unitary_name::Symbol = :Ũ⃗,
     control_name::Symbol = :a,
     R=1e-2,

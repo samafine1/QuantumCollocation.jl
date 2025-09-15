@@ -164,10 +164,6 @@ function UnitaryVariationalProblem(
 
     # Objective
     J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
-    if activate_rob_loss
-        J += FirstOrderObjective(H_err, traj, [T]; Q_t=Q_t)
-    end
-    # J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
     J += QuadraticRegularizer(control_names[1], traj, R_a)
     J += QuadraticRegularizer(control_names[2], traj, R_da)
     J += QuadraticRegularizer(control_names[3], traj, R_dda)

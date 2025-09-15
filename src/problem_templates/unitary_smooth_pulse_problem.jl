@@ -90,7 +90,7 @@ function UnitarySmoothPulseProblem(
     activate_rob_loss::Bool=false,
     H_err::Union{Function, Nothing}=nothing,
     Q::Float64=100.0,
-    Q_t::Float64=1e-2,
+    Q_t::Float64=1.0,
     R=1e-2,
     R_a::Union{Float64, Vector{Float64}}=R,
     R_da::Union{Float64, Vector{Float64}}=R,
