@@ -10,6 +10,7 @@ export UnitaryFreePhaseInfidelityObjective
 export LeakageObjective
 export UniversalObjective
 export FastUniversalObjective
+export TurboUniversalObjective
 
 using LinearAlgebra
 using NamedTrajectories
@@ -280,7 +281,7 @@ function FastUniversalObjective(
     U = ones(length(traj.components.Ũ⃗))
     U_scale = norm(U, 2)
     Ũ⃗_indices  = [collect(slice(k, traj.components.Ũ⃗, traj.dim)) for k in 1:traj.T]
-
+    normalization = Q_t / (U_scale * T^2)
     @views function trace(Z::AbstractVector, k_idx::AbstractVector{<:Int}, l_idx::AbstractVector{<:Int})
         Uₗ = iso_vec_to_operator(Z[l_idx])
         Uₖ = iso_vec_to_operator(Z[k_idx])
@@ -290,15 +291,14 @@ function FastUniversalObjective(
     # ---- Objective ----
     function ℓ(Z::AbstractVector{<:Real})
         # Double sum over (k, ℓ) of |tr(U_{kℓ})|^2
-        s = 0
-        l = 1
+        s = zero(eltype(Z))
         for k in 1:T
             for l in 1:k
-            τ1, τ2 = trace(Z, Ũ⃗_indices[k], Ũ⃗_indices[l])
-            s += abs2(τ1)
-            s += abs2(τ2)
+                τ1, τ2 = trace(Z, Ũ⃗_indices[k], Ũ⃗_indices[l])
+                s += abs2(τ1) + abs2(τ2)
+            end
         end
-        return Q_t * (s / (U_scale * T^2) - 1.0)
+        return normalization * s - Q_t
     end
 
     ∇ℓ = Z -> ForwardDiff.gradient(ℓ, Z)
@@ -328,6 +328,72 @@ function FastUniversalObjective(
 
     return Objective(ℓ, ∇ℓ, ∂²ℓ, ∂²ℓ_structure)
 end
+
+function TurboUniversalObjective(
+    traj::NamedTrajectory;
+    Q_t::Float64 = 1.0,
+)
+
+    T = traj.T
+    U = ones(length(traj.components.Ũ⃗))
+    U_scale = norm(U, 2)
+    Ũ⃗_indices  = [collect(slice(k, traj.components.Ũ⃗, traj.dim)) for k in 1:traj.T]
+    normalization = Q_t / (U_scale * T^2)
+    # Build a column-stacked matrix V whose k-th column is the vectorized U(t_k,0).
+    # Ũ⃗_indices[k] are the index ranges/slices inside Z for the k-th unitary's vectorization.
+    # If your Z is already complex, keep eltype(Z); otherwise promote to ComplexF64.
+    
+    
+    packZ(Z) = vcat((@views Z[r] for r in Ũ⃗_indices)...)  # length L = m*T
+
+    # Build V (m×T) from the packed vector z̃ = [vec(U₁); vec(U₂); … ; vec(U_T)]
+    build_V_from_packed(z̃) = begin
+        T = length(Ũ⃗_indices)
+        m = length(Ũ⃗_indices[1])
+        V = Matrix{complex(eltype(z̃))}(undef, m, T)
+        @inbounds for k in 1:T
+            V[:, k] = @view z̃[(k-1)*m+1 : k*m]
+        end
+        V
+    end
+
+    function ℓ(Z::AbstractVector{<:Real})
+        z̃ = packZ(Z)                   # only the entries that matter
+        V  = build_V_from_packed(z̃)    # m×T
+        G  = V' * V                    # T×T Gram
+        s  = sum(abs2, G)              # ‖G‖_F^2 = Σ_{k,ℓ} |Tr(U_k U_ℓ†)|²
+        return normalization * s - Q_t
+    end
+
+
+    ∇ℓ = Z -> ForwardDiff.gradient(ℓ, Z)
+
+    function ∂²ℓ_structure()
+        all_idx = vcat(Ũ⃗_indices...)
+        return [(i, j) for i in all_idx for j in all_idx]
+    end
+
+    function ∂²ℓ(Z::AbstractVector{<:Real})
+        z̃ = packZ(Z)
+        H̃ = ForwardDiff.hessian(z -> begin
+            V = build_V_from_packed(z)
+            G = V' * V
+            normalization * sum(abs2, G) - Q_t
+        end, z̃)
+
+        L = length(z̃)
+        vals = Vector{eltype(H̃)}(undef, L*L)
+        t = 1
+        @inbounds for i in 1:L, j in 1:L
+            vals[t] = H̃[i, j]
+            t += 1
+        end
+        return vals
+    end
+
+    Objective(ℓ, ∇ℓ, ∂²ℓ, ∂²ℓ_structure)
+end
+
 # ---------------------------------------------------------
 #                       Leakage
 # ---------------------------------------------------------

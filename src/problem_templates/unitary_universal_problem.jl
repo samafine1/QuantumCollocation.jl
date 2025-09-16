@@ -87,6 +87,8 @@ function UnitaryUniversalProblem(
     Δt_min::Float64=0.5 * minimum(Δt),
     Δt_max::Float64=2.0 * maximum(Δt),
     Q::Float64=100.0,
+    activate_speedboost::Bool=false,
+    activate_hyperspeed::Bool=false,
     Q_t::Float64=1.0,
     R=1e-2,
     R_a::Union{Float64, Vector{Float64}}=R,
@@ -124,7 +126,14 @@ function UnitaryUniversalProblem(
     end
     # Objective
     J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
-    J += UniversalObjective(traj; Q_t=Q_t)
+    if activate_speedboost
+        J += FastUniversalObjective(traj; Q_t=Q_t)
+    elseif activate_hyperspeed
+        J += TurboUniversalObjective(traj; Q_t=Q_t)
+    else
+        J += UniversalObjective(traj; Q_t=Q_t)
+    end
+    
 
     control_names = [
         name for name ∈ traj.names
@@ -339,6 +348,8 @@ function UnitaryUniversalProblem(
     Δt_min::Float64=0.5 * minimum(Δt),
     Δt_max::Float64=2.0 * maximum(Δt),
     Q::Float64=100.0,
+    activate_speedboost::Bool=false,
+    activate_hyperspeed::Bool=false,
     Q_t::Float64=1.0,
     R=1e-2,
     R_a::Union{Float64, Vector{Float64}}=R,
@@ -376,7 +387,14 @@ function UnitaryUniversalProblem(
     end
     # Objective
     J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
-    J += FirstOrderObjective(H_err, traj; Q_t=Q_t)
+    if activate_speedboost
+        J += FastUniversalObjective(traj; Q_t=Q_t)
+    elseif activate_hyperspeed
+        J += TurboUniversalObjective(traj; Q_t=Q_t)
+    else
+        J += UniversalObjective(traj; Q_t=Q_t)
+    end
+    
 
     control_names = [
         name for name ∈ traj.names
