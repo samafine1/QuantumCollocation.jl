@@ -341,8 +341,6 @@ function TurboUniversalObjective(
     normalization = Q_t / (U_scale * T^2)
     # Build a column-stacked matrix V whose k-th column is the vectorized U(t_k,0).
     # Ũ⃗_indices[k] are the index ranges/slices inside Z for the k-th unitary's vectorization.
-    # If your Z is already complex, keep eltype(Z); otherwise promote to ComplexF64.
-    
     
     packZ(Z) = vcat((@views Z[r] for r in Ũ⃗_indices)...)  # length L = m*T
 
