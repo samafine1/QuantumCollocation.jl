@@ -40,11 +40,8 @@ Constructs a unitary variational problem for optimizing quantum control trajecto
 - `dda_bounds`: Bounds for each second derivative of the control variable.
 - `Δt_min::Float64`: Minimum allowed timestep duration.
 - `Δt_max::Float64`: Maximum allowed timestep duration.
-- 'activate_rob_loss::Bool=false,': flag to turn or off the toggling frame robustness objective
-- 'H_err::Union{AbstractMatrix{<:Number}, Nothing}=nothing': the error Hamiltonian on the unitary goal
 - `Q::Float64`: Weight for the unitary infidelity objective (default: `100.0`).
 - `Q_v::Float64`: Weight for sensitivity objectives (default: `1.0`).
-- 'Q_t::Float64`: Weight for toggling frame objective (default: `0.0`).
 - `R`: Regularization weight for control variables (default: `1e-2`).
 - `R_a`, `R_da`, `R_dda`: Regularization weights for control, its derivative, and second derivative.
 - `constraints::Vector`: Additional constraints for the optimization problem.
@@ -86,12 +83,10 @@ function UnitaryVariationalProblem(
     dda_bounds=fill(dda_bound, system.n_drives),
     Δt_min::Float64=0.5 * minimum(Δt),
     Δt_max::Float64=2.0 * maximum(Δt),
-    activate_rob_loss::Bool=false,
-    H_err::Union{AbstractMatrix{<:Number}, Nothing}=nothing,
     Q::Float64=100.0,
     Q_s::Float64=1e-2,
     Q_r::Float64=100.0,
-    Q_t::Float64=0.0,
+    var_seed::Bool=true,
     R=1e-2,
     R_a::Union{Float64, Vector{Float64}}=R,
     R_da::Union{Float64, Vector{Float64}}=R,
@@ -150,19 +145,21 @@ function UnitaryVariationalProblem(
     var_comps_data = NamedTuple{var_state_names}(
         Ũ⃗_v / scale for (scale, Ũ⃗_v) in zip(variational_scales, Ũ⃗_vars)
     )
-    traj = add_components(
-        traj, 
-        var_comps_data; 
-        type=:state,
-        initial=merge(traj.initial, var_comps_inits)
-    )
+    if var_seed
+        traj = add_components(
+            traj, 
+            var_comps_data; 
+            type=:state,
+            initial=merge(traj.initial, var_comps_inits)
+        )
+    end
 
     control_names = [
         name for name ∈ traj.names
             if endswith(string(name), string(control_name))
     ]
 
-    # Objective
+    # objective
     J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
     J += QuadraticRegularizer(control_names[1], traj, R_a)
     J += QuadraticRegularizer(control_names[2], traj, R_da)

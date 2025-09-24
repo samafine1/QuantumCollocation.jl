@@ -1,8 +1,8 @@
-export UnitaryMaxAdjointProblem
+export UnitaryMaxUniversalProblem
 
 
 @doc raw"""
-    UnitaryMaxAdjointProblem(
+    UnitaryMaxUniversalProblem(
         trajectory::NamedTrajectory,
         goal::AbstractPiccoloOperator,
         objective::Objective,
@@ -35,75 +35,25 @@ J(\vec{\tilde{U}}, a, \dot{a}, \ddot{a}) + D \sum_t \Delta t_t \\
 - `D::Float64=1.0`: The scaling factor for the minimum-time objective.
 - `H_err::Function`: Error term of hamiltonian (as a function of controls)
 """
-function UnitaryMaxAdjointProblem end
+function UnitaryMaxUniversalProblem end
 
-function UnitaryMaxAdjointProblem(
+function UnitaryMaxUniversalProblem(
     trajectory::NamedTrajectory,
     goal::AbstractPiccoloOperator,
     objective::Objective,
     dynamics::TrajectoryDynamics,
-    constraints::AbstractVector{<:AbstractConstraint},
-    robust_times::AbstractVector{<:AbstractVector{Int}}=[Int[] for s ∈ system.G_vars],
-    sensitive_times::AbstractVector{<:AbstractVector{Int}}=[Int[] for s ∈ system.G_vars],
-    variational_integrator=VariationalUnitaryIntegrator,
-    variational_scales::AbstractVector{<:Float64}=fill(1.0, length(system.G_vars)),
-    state_name::Symbol = :Ũ⃗,
-    variational_state_name::Symbol = :Ũ⃗ᵥ;
-    Q::Float64=100.0,
-    Q_s::Float64=1e-2,
-    Q_r::Float64=100.0,
-    Q_t::Float64=0.0,
+    constraints::AbstractVector{<:AbstractConstraint};
+    Q_t::Float64 = 1.0,
     unitary_name::Symbol = :Ũ⃗,
     final_fidelity::Float64 = 1.0,
     piccolo_options::PiccoloOptions = PiccoloOptions(),
 )
     if piccolo_options.verbose
-        println("    constructing UnitaryMaxAdjointProblem (maximize robustness)...")
+        println("    constructing UnitaryMaxUniversalProblem (maximize robustness)...")
         println("\tfinal fidelity: $(final_fidelity), Q_t = $(Q_t)")
     end
-    # Add variational components to the trajectory
-    var_state_names = Tuple(
-        Symbol(string(variational_state_name) * "$(i)") for i in eachindex(system.G_vars)
-    )
-    var_comps_inits = NamedTuple{var_state_names}(
-        Ũ⃗_v[:, 1] / scale for (scale, Ũ⃗_v) in zip(variational_scales, Ũ⃗_vars)
-    )
-    var_comps_data = NamedTuple{var_state_names}(
-        Ũ⃗_v / scale for (scale, Ũ⃗_v) in zip(variational_scales, Ũ⃗_vars)
-    )
-    traj = add_components(
-        traj, 
-        var_comps_data; 
-        type=:state,
-        initial=merge(traj.initial, var_comps_inits)
-    )
 
-    control_names = [
-        name for name ∈ traj.names
-            if endswith(string(name), string(control_name))
-    ]
-    
-    J = objective
-    J += QuadraticRegularizer(control_names[1], traj, R_a)
-    J += QuadraticRegularizer(control_names[2], traj, R_da)
-    J += QuadraticRegularizer(control_names[3], traj, R_dda)
-
-    # sensitivity
-    for (name, scale, s, r) ∈ zip(
-        var_state_names, 
-        variational_scales, 
-        sensitive_times, 
-        robust_times
-    )
-        @assert isdisjoint(s, r)
-        J += UnitarySensitivityObjective(
-            name, 
-            traj, 
-            [s; r]; 
-            Qs=[fill(-Q_s, length(s)); fill(Q_r, length(r))], 
-            scale=scale
-        )
-    end
+    objective += TurboUniversalObjective(trajectory; Q_t=Q_t)
 
     fidelity_constraint = FinalUnitaryFidelityConstraint(
         goal, unitary_name, final_fidelity, trajectory
@@ -114,10 +64,9 @@ function UnitaryMaxAdjointProblem(
 end
 
 
-function UnitaryMaxAdjointProblem(
+function UnitaryMaxUniversalProblem(
     prob::DirectTrajOptProblem,
-    goal::AbstractPiccoloOperator,
-    H_err::Function;
+    goal::AbstractPiccoloOperator;
     objective::Objective = NullObjective(prob.trajectory),
     constraints::AbstractVector{<:AbstractConstraint} = deepcopy(prob.constraints),
     Q_t::Float64 = 1.0,
@@ -153,13 +102,12 @@ function UnitaryMaxAdjointProblem(
     )
 
 
-    return UnitaryMaxAdjointProblem(
+    return UnitaryMaxUniversalProblem(
         deepcopy(prob.trajectory),
         goal,
         J,
         prob.dynamics,
-        constraints,
-        H_err;
+        constraints;
         Q_t=Q_t,
         unitary_name=unitary_name,
         final_fidelity=final_fidelity,
@@ -167,7 +115,7 @@ function UnitaryMaxAdjointProblem(
     )
 end
 
-# function UnitaryMaxAdjointProblem(
+# function UnitaryMaxUniversalProblem(
 #     trajectory::NamedTrajectory,
 #     goal::AbstractPiccoloOperator,
 #     objective::Objective,
@@ -180,11 +128,11 @@ end
 #     piccolo_options::PiccoloOptions = PiccoloOptions(),
 # )
 #     if piccolo_options.verbose
-#         println("    constructing UnitaryMaxAdjointProblem (maximize robustness)...")
+#         println("    constructing UnitaryMaxUniversalProblem (maximize robustness)...")
 #         println("\tfinal fidelity: $(final_fidelity)")
 #     end
 
-#     objective += FirstOrderObjective(H_err, trajectory; Q_t=Q_t)
+#     objective += TurboUniversalObjective(trajectory; Q_t=Q_t)
 
 #     fidelity_constraint = FinalUnitaryFidelityConstraint(
 #         goal, unitary_name, final_fidelity, trajectory
@@ -203,7 +151,7 @@ end
 # Free phases
 # --------------------------------------------------------------------------- #
 
-function UnitaryMaxAdjointProblem(
+function UnitaryMaxUniversalProblem(
     trajectory::NamedTrajectory,
     goal::Function,
     objective::Objective,
@@ -219,7 +167,7 @@ function UnitaryMaxAdjointProblem(
     phase_names = [n for n in trajectory.global_names if endswith(string(n), string(phase_name))]
 
     if piccolo_options.verbose
-        println("    constructing UnitaryMaxAdjointProblem...")
+        println("    constructing UnitaryMaxUniversalProblem...")
         println("\tfinal fidelity: $(final_fidelity)")
         println("\tphase names: $(phase_names)")
     end
@@ -241,7 +189,7 @@ function UnitaryMaxAdjointProblem(
     )
 end
 
-function UnitaryMaxAdjointProblem(
+function UnitaryMaxUniversalProblem(
     prob::DirectTrajOptProblem,
     goal::Function,
     H_err::Function;
@@ -249,13 +197,12 @@ function UnitaryMaxAdjointProblem(
     constraints::AbstractVector{<:AbstractConstraint}=deepcopy(prob.constraints),
     kwargs...
 )
-    return UnitaryMaxAdjointProblem(
+    return UnitaryMaxUniversalProblem(
         deepcopy(prob.trajectory),
         goal,
         objective,
         deepcopy(prob.dynamics),
-        constraints,
-        H_err;
+        constraints;
         kwargs...
     )
 end
@@ -285,8 +232,8 @@ end
     @test after > before
 
     # soft fidelity constraint
-    min_prob = UnitaryMaxAdjointProblem(
-        prob, U_goal,
+    min_prob = UnitaryMaxUniversalProblem(
+        prob, U_goal;
         piccolo_options=PiccoloOptions(verbose=false)
     )
     solve!(min_prob; max_iter=150, verbose=false, print_level=1)
