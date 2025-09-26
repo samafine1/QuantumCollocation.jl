@@ -11,6 +11,8 @@ export LeakageObjective
 export UniversalObjective
 export FastUniversalObjective
 export TurboUniversalObjective
+export FastToggleObjective
+export UltraUniversalObjective
 
 using LinearAlgebra
 using NamedTrajectories
@@ -192,6 +194,138 @@ function FirstOrderObjective(
     #     sum_terms = sum(toggle(Z, a_idx, U_idx) for (a_idx, U_idx) in zip(a_indices, Ũ⃗_indices))
     #     return Q_t * real(norm(tr(sum_terms' * sum_terms), 2)) / real(traj.T^2 * H_scale)
     # end
+
+    ∇ℓ = Z ->  ForwardDiff.gradient(ℓ, Z)
+
+    function ∂²ℓ_structure()
+        Z_dim = traj.dim * traj.T + traj.global_dim
+        structure = spzeros(Z_dim, Z_dim)
+        all_Ũ⃗_indices = vcat(Ũ⃗_indices...)
+        
+        for i in all_Ũ⃗_indices
+            for j in all_Ũ⃗_indices
+                structure[i, j] = 1.0
+            end
+        end
+        
+        structure_pairs = collect(zip(findnz(structure)[1:2]...))
+        return structure_pairs
+    end
+
+    function ∂²ℓ(Z::AbstractVector{<:Real})
+        structure_pairs = ∂²ℓ_structure()
+        H_full = ForwardDiff.hessian(ℓ, Z)
+        ∂²ℓ_values = [H_full[i, j] for (i, j) in structure_pairs]
+        
+        return ∂²ℓ_values
+    end
+
+    return Objective(ℓ, ∇ℓ, ∂²ℓ, ∂²ℓ_structure)
+end
+    
+function FastToggleObjective(
+    H_err::Function,
+    traj::NamedTrajectory;
+    Q_t::Float64=1.0
+)
+    a_indices   = [collect(slice(k, traj.components.a, traj.dim)) for k in 1:traj.T]
+    Ũ⃗_indices  = [collect(slice(k, traj.components.Ũ⃗, traj.dim)) for k in 1:traj.T]
+    a_ref       = ones(length(traj.components.a))
+    H_scale     = norm(H_err(a_ref), 2)
+
+    packZ(Z) = vcat((@views Z[r] for r in Ũ⃗_indices)...)  # length L = m*T
+
+    # Build V (m×T) from the packed vector z̃ = [vec(U₁); vec(U₂); … ; vec(U_T)]
+    build_V_from_packed(z̃) = begin
+        T = length(Ũ⃗_indices)
+        m = length(Ũ⃗_indices[1])
+        V = Matrix{complex(eltype(z̃))}(undef, m, T)
+        @inbounds for k in 1:T
+            V[:, k] = @view z̃[(k-1)*m+1 : k*m]
+        end
+        V
+    end
+
+
+    @views function toggle(Z::AbstractVector, a_idx::AbstractVector{<:Int}, U_idx::AbstractVector{<:Int})
+        a  = Z[a_idx]
+        U  = iso_vec_to_operator(Z[U_idx])
+        He_vec = H_err(a)
+        # compute once per trajectory step
+        return [U' * He * U for He in He_vec]
+    end
+    norm_val = Q_t / (traj.T^2 * H_scale)
+
+    function ℓ(Z::AbstractVector{<:Real})
+        toggled_sets = [toggle(Z, a_idx, U_idx) for (a_idx, U_idx) in zip(a_indices, Ũ⃗_indices)]
+        n_terms = length(first(toggled_sets))  # number of He operators
+        dims = size(toggled_sets[1][1])
+        obj = 0
+
+        @inbounds for j in 1:n_terms
+            # accumulate over time steps
+            sum_term = zeros(eltype(toggled_sets[1][j]), dims)
+            for set in toggled_sets
+                sum_term .+= set[j]
+            end
+            trval = tr(sum_term' * sum_term)
+            obj  += norm_val * real(norm(trval, 2))
+        end
+
+        return obj
+    end
+    
+    ∇ℓ = Z -> ForwardDiff.gradient(ℓ, Z)
+
+    function ∂²ℓ_structure()
+        all_idx = vcat(Ũ⃗_indices...)
+        return [(i, j) for i in all_idx for j in all_idx]
+    end
+
+    function ∂²ℓ(Z::AbstractVector{<:Real})
+        z̃ = packZ(Z)
+        H̃ = ForwardDiff.hessian(z -> begin
+            V = build_V_from_packed(z)
+            G = V' * V
+            norm_val * sum(abs2, G)
+        end, z̃)
+
+        L = length(z̃)
+        vals = Vector{eltype(H̃)}(undef, L*L)
+        t = 1
+        @inbounds for i in 1:L, j in 1:L
+            vals[t] = H̃[i, j]
+            t += 1
+        end
+        return vals
+    end
+
+    return Objective(ℓ, ∇ℓ, ∂²ℓ, ∂²ℓ_structure)
+end
+    
+function UltraUniversalObjective(
+        traj::NamedTrajectory;
+        basis::Vector{Matrix{ComplexF64}}=[Matrix{ComplexF64}(undef, 0, 0)],
+        Qu::Float64=1.0,
+        Qb::Vector{Float64} = fill(1.0, length(basis)),
+        toggle::Bool=false,
+)
+    ⊗ = kron
+    Ũ⃗_indices  = [collect(slice(k, traj.components.Ũ⃗, traj.dim)) for k in 1:traj.T]
+    function ℓ(Z::AbstractVector{<:Real})    
+        ϵ = sum(iso_vec_to_operator(Z[r])⊗conj(iso_vec_to_operator(Z[r]))/traj.T for r in Ũ⃗_indices)
+        d = size(ϵ)[1]
+
+        if !toggle
+            s = Qu * norm(tr(ϵ'ϵ))/d
+        else
+            s = 0
+            for (i, b) in enumerate(basis)
+                s += Qb[i]*norm(vec(b)'*ϵ'ϵ*vec(b))
+            end
+        end
+        return s
+    end
 
     ∇ℓ = Z ->  ForwardDiff.gradient(ℓ, Z)
 
