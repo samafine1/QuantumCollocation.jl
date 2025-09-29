@@ -125,7 +125,7 @@ function UnitaryToggleProblem(
     end
     # Objective
     J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
-    J += FastToggleObjective(H_err, traj; Q_t=Q_t)
+    J += FirstOrderObjective(H_err, traj; Q_t=Q_t)
 
     control_names = [
         name for name ∈ traj.names

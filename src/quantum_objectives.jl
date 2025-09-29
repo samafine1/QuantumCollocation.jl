@@ -150,8 +150,10 @@ function UnitarySensitivityObjective(
     times::AbstractVector{Int};
     Qs::AbstractVector{<:Float64}=fill(1.0, length(times)),
     scale::Float64=1.0,
-)
-    ℓ = Ũ⃗ -> scale^4 * unitary_fidelity_loss(Ũ⃗)
+)   
+    Δt = traj.timestep
+    T = length(times)
+    ℓ = Ũ⃗ -> scale^4 * unitary_fidelity_loss(Ũ⃗) / (T*Δt)^2
 
     return KnotPointObjective(
         ℓ,
@@ -171,6 +173,7 @@ function FirstOrderObjective(
     Ũ⃗_indices  = [collect(slice(k, traj.components.Ũ⃗, traj.dim)) for k in 1:traj.T]
     a_ref = ones(length(traj.components.a))
     H_scale = norm(H_err(a_ref), 2)
+    t = traj.timestep
 
     @views function toggle(Z::AbstractVector, a_idx::AbstractVector{<:Int}, U_idx::AbstractVector{<:Int})
         a  = Z[a_idx]
@@ -179,15 +182,15 @@ function FirstOrderObjective(
         return [U' * He * U for He in He_vec]
 
     end
-
+    n_err_terms = length(toggle(Z, a_indices[1], Ũ⃗_indices[1]))
     function ℓ(Z::AbstractVector{<:Real})
         terms = []
-        for j in 1:length(toggle(Z, a_indices[1], Ũ⃗_indices[1]))
+        for j in 1:n_err_terms
             sum_terms = sum(toggle(Z, a_idx, U_idx)[j] for (a_idx, U_idx) in zip(a_indices, Ũ⃗_indices))
             push!(terms, sum_terms)
         end
-        FO_obj = sum(real(norm(tr(term' * term), 2)) / real(traj.T^2 * H_scale^2) for term in terms) 
-        return Q_t * FO_obj
+        FO_obj = sum(real(norm(tr(term' * term), 2)) / real((t * traj.T)^2 * H_scale^2) for term in terms) 
+        return Q_t * FO_obj / n_err_terms
     end
 
     # function ℓ(Z::AbstractVector{<:Real})
@@ -232,7 +235,7 @@ function FastToggleObjective(
     Ũ⃗_indices  = [collect(slice(k, traj.components.Ũ⃗, traj.dim)) for k in 1:traj.T]
     a_ref       = ones(length(traj.components.a))
     H_scale     = norm(H_err(a_ref), 2)
-
+    Δt = traj.timestep
     packZ(Z) = vcat((@views Z[r] for r in Ũ⃗_indices)...)  # length L = m*T
 
     # Build V (m×T) from the packed vector z̃ = [vec(U₁); vec(U₂); … ; vec(U_T)]
@@ -254,8 +257,7 @@ function FastToggleObjective(
         # compute once per trajectory step
         return [U' * He * U for He in He_vec]
     end
-    norm_val = Q_t / (traj.T^2 * H_scale)
-
+    norm_val = Q_t / ((Δt * traj.T * H_scale)^2)
     function ℓ(Z::AbstractVector{<:Real})
         toggled_sets = [toggle(Z, a_idx, U_idx) for (a_idx, U_idx) in zip(a_indices, Ũ⃗_indices)]
         n_terms = length(first(toggled_sets))  # number of He operators
@@ -272,7 +274,7 @@ function FastToggleObjective(
             obj  += norm_val * real(norm(trval, 2))
         end
 
-        return obj
+        return obj / n_terms
     end
     
     ∇ℓ = Z -> ForwardDiff.gradient(ℓ, Z)
