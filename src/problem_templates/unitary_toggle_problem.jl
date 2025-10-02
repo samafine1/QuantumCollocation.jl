@@ -5,37 +5,10 @@ export UnitaryToggleProblem
     UnitaryToggleProblem(system::AbstractQuantumSystem, operator::AbstractPiccoloOperator, T::Int, Δt::Float64; kwargs...)
     UnitaryToggleProblem(H_drift, H_drives, operator, T, Δt; kwargs...)
 
-Construct a `DirectTrajOptProblem` for a free-time unitary gate problem with smooth control pulses enforced by constraining the second derivative of the pulse trajectory, i.e.,
-
-```math
-\begin{aligned}
-\underset{\vec{\tilde{U}}, a, \dot{a}, \ddot{a}, \Delta t}{\text{minimize}} & \quad
-Q \cdot \ell\qty(\vec{\tilde{U}}_T, \vec{\tilde{U}}_{\text{goal}}) + \frac{1}{2} \sum_t \qty(R_a a_t^2 + R_{\dot{a}} \dot{a}_t^2 + R_{\ddot{a}} \ddot{a}_t^2) \\
-\text{ subject to } & \quad \vb{P}^{(n)}\qty(\vec{\tilde{U}}_{t+1}, \vec{\tilde{U}}_t, a_t, \Delta t_t) = 0 \\
-& \quad a_{t+1} - a_t - \dot{a}_t \Delta t_t = 0 \\
-& \quad \dot{a}_{t+1} - \dot{a}_t - \ddot{a}_t \Delta t_t = 0 \\
-& \quad |a_t| \leq a_{\text{bound}} \\
-& \quad |\ddot{a}_t| \leq \ddot{a}_{\text{bound}} \\
-& \quad \Delta t_{\text{min}} \leq \Delta t_t \leq \Delta t_{\text{max}} \\
-\end{aligned}
-```
-
-where, for $U \in SU(N)$,
-
-```math
-\ell\qty(\vec{\tilde{U}}_T, \vec{\tilde{U}}_{\text{goal}}) =
-\abs{1 - \frac{1}{N} \abs{ \tr \qty(U_{\text{goal}}, U_T)} }
-```
-
-is the *infidelity* objective function, $Q$ is a weight, $R_a$, $R_{\dot{a}}$, and $R_{\ddot{a}}$ are weights on the regularization terms, and $\vb{P}^{(n)}$ is the $n$th-order Pade integrator.
 
 # Arguments
 
-- `system::AbstractQuantumSystem`: the system to be controlled
-or
-- `H_drift::AbstractMatrix{<:Number}`: the drift hamiltonian
-- `H_drives::Vector{<:AbstractMatrix{<:Number}}`: the control hamiltonians
-with
+- `system::VariationalQuantumSystem`: The quantum system to be controlled, containing variational parameters.
 - `goal::AbstractPiccoloOperator`: the target unitary, either in the form of an `EmbeddedOperator` or a `Matrix{ComplexF64}
 - `T::Int`: the number of timesteps
 - `Δt::Float64`: the (initial) time step size
@@ -57,7 +30,7 @@ with
 - `Δt_max::Float64=Δt isa Float64 ? 1.5 * Δt : 1.5 * mean(Δt)`: the maximum time step size
 - 'H_err::Union{AbstractMatrix{<:Number}, Nothing}=nothing': the error Hamiltonian on the unitary goal
 - `Q::Float64=100.0`: the weight on the infidelity objective
-- 'Q_t::Float64=0.0': the weight of the objective the FirstOrderObjective loss function (default 0.0)
+- 'Q_t::Float64=1.0': the weight of the objective the Toggling loss function (default 0.0)
 - `R=1e-2`: the weight on the regularization terms
 - `R_a::Union{Float64, Vector{Float64}}=R`: the weight on the regularization term for the control pulses
 - `R_da::Union{Float64, Vector{Float64}}=R`: the weight on the regularization term for the control pulse derivatives
@@ -68,12 +41,11 @@ with
 function UnitaryToggleProblem end
 
 function UnitaryToggleProblem(
-    system::AbstractQuantumSystem,
+    system::VariationalQuantumSystem,
     goal::AbstractPiccoloOperator,
     T::Int,
-    Δt::Union{Float64, <:AbstractVector{Float64}},
-    H_err::Function;
-    unitary_integrator=UnitaryExponentialIntegrator,
+    Δt::Union{Float64, <:AbstractVector{Float64}};
+    unitary_integrator=UnitaryIntegrator,
     state_name::Symbol = :Ũ⃗,
     control_name::Symbol = :a,
     timestep_name::Symbol = :Δt,
@@ -88,6 +60,7 @@ function UnitaryToggleProblem(
     Δt_min::Float64=0.5 * minimum(Δt),
     Δt_max::Float64=2.0 * maximum(Δt),
     Q::Float64=100.0,
+    fast::Bool=true,
     Q_t::Float64=1.0,
     R=1e-2,
     R_a::Union{Float64, Vector{Float64}}=R,
@@ -100,6 +73,11 @@ function UnitaryToggleProblem(
         println("    constructing UnitaryToggleProblem...")
         println("\tusing integrator: $(typeof(unitary_integrator))")
     end
+
+    ### Errors ###
+    H_err = a -> [1im * iso_operator_to_operator(H(a)) for H in system.G_vars]
+    ∂H_err = a -> [0.0*a for H in system.G_vars]
+
     # Trajectory
     if !isnothing(init_trajectory)
         traj = init_trajectory
@@ -124,9 +102,13 @@ function UnitaryToggleProblem(
         )
     end
     # Objective
+    # drives = map(Matrix, system.H.H_drives)
     J = UnitaryInfidelityObjective(goal, state_name, traj; Q=Q)
-    J += FirstOrderObjective(H_err, traj; Q_t=Q_t)
-
+    if fast
+        J += TogglingObjective(H_err, ∂H_err, traj; Q_t = Q_t)
+    else    
+        J += AutoTogglingObjective(H_err, traj; Q_t = Q_t)
+    end
     control_names = [
         name for name ∈ traj.names
             if endswith(string(name), string(control_name))
@@ -136,17 +118,8 @@ function UnitaryToggleProblem(
     J += QuadraticRegularizer(control_names[2], traj, R_da)
     J += QuadraticRegularizer(control_names[3], traj, R_dda)
 
-    # Optional Piccolo constraints and objectives
-    J += apply_piccolo_options!(
-        piccolo_options, constraints, traj; 
-        state_names=state_name,
-        state_leakage_indices=goal isa EmbeddedOperator ? 
-            get_iso_vec_leakage_indices(goal) : 
-            nothing
-    )
-
     integrators = [
-        unitary_integrator(system, traj, state_name, control_name),
+        unitary_integrator(QuantumSystem(system.H, system.n_drives), traj, state_name, control_name),
         DerivativeIntegrator(traj, control_name, control_names[2]),
         DerivativeIntegrator(traj, control_names[2], control_names[3]),
     ]
@@ -157,94 +130,4 @@ function UnitaryToggleProblem(
         integrators;
         constraints=constraints
     )
-end
-
-function UnitaryToggleProblem(
-    H_drift::AbstractMatrix{<:Number},
-    H_drives::Vector{<:AbstractMatrix{<:Number}},
-    args...;
-    kwargs...
-)
-    system = QuantumSystem(H_drift, H_drives)
-    return UnitaryToggleProblem(system, args...; kwargs...)
-end
-
-# *************************************************************************** #
-
-@testitem "Hadamard gate improvement" begin
-    using PiccoloQuantumObjects 
-
-    sys = QuantumSystem(GATES[:Z], [GATES[:X], GATES[:Y]])
-    U_goal = GATES[:H]
-    T = 51
-    Δt = 0.2
-
-    prob = UnitaryToggleProblem(
-        sys, U_goal, T, Δt;
-        da_bound=1.0,
-        piccolo_options=PiccoloOptions(verbose=false)
-    )
-
-    initial = unitary_rollout_fidelity(prob.trajectory, sys)
-    solve!(prob, max_iter=100, verbose=false, print_level=1)
-    @test unitary_rollout_fidelity(prob.trajectory, sys) > initial
-end
-
-@testitem "Bound states and control norm constraint" begin
-    using PiccoloQuantumObjects 
-
-    sys = QuantumSystem(GATES[:Z], [GATES[:X], GATES[:Y]])
-    U_goal = GATES[:H]
-    T = 51
-    Δt = 0.2
-
-    prob = UnitaryToggleProblem(
-        sys, U_goal, T, Δt,
-        piccolo_options=PiccoloOptions(
-            verbose=false,
-            bound_state=true,
-            complex_control_norm_constraint_name=:a
-        )
-    )
-
-    initial = copy(prob.trajectory.data)
-    solve!(prob, max_iter=5, verbose=false, print_level=1)
-    @test prob.trajectory.data != initial
-end
-
-@testitem "EmbeddedOperator tests" begin
-    using PiccoloQuantumObjects 
-
-    a = annihilate(3)
-    sys = QuantumSystem([(a + a')/2, (a - a')/(2im)])
-    U_goal = EmbeddedOperator(GATES[:H], sys)
-    T = 51
-    Δt = 0.2
-
-    @testset "EmbeddedOperator: solve gate" begin
-        prob = UnitaryToggleProblem(
-            sys, U_goal, T, Δt,
-            piccolo_options=PiccoloOptions(verbose=false)
-        )
-
-        initial = copy(prob.trajectory.data)
-        solve!(prob, max_iter=5, verbose=false, print_level=1)
-        @test prob.trajectory.data != initial
-    end
-
-    @testset "EmbeddedOperator: leakage constraint" begin
-        prob = UnitaryToggleProblem(
-            sys, U_goal, T, Δt;
-            da_bound=1.0,
-            piccolo_options=PiccoloOptions(
-                leakage_constraint=true, 
-                leakage_constraint_value=5e-2, 
-                leakage_cost=1e-1,
-                verbose=false
-            )
-        )
-        initial = copy(prob.trajectory.data)
-        solve!(prob, max_iter=5, verbose=false, print_level=1)
-        @test prob.trajectory.data != initial
-    end
 end
